@@ -60,6 +60,10 @@
 #include "llvm/Support/Process.h"
 #include <optional>
 
+#if __has_include(<sys/mount.h>)
+#include <sys/mount.h> // statfs
+#endif
+
 #define DEBUG_TYPE "on-disk-cas"
 
 using namespace llvm;
@@ -1346,6 +1350,22 @@ size_t OnDiskGraphDB::getStorageSize() const {
   return Index.size() + DataPool.size() + getStandaloneStorageSize();
 }
 
+static bool useSmallMappedFiles(const Twine &P) {
+  // macOS tmpfs does not support sparse tails.
+#if defined(__APPLE__) && __has_include(<sys/mount.h>)
+  SmallString<128> PathStorage;
+  StringRef Path = P.toNullTerminatedStringRef(PathStorage);
+  struct statfs StatFS;
+  if (statfs(Path.data(), &StatFS) != 0)
+    return false;
+
+  if (strcmp(StatFS.f_fstypename, "tmpfs") == 0)
+    return true;
+#endif
+
+  return false;
+}
+
 Expected<std::unique_ptr<OnDiskGraphDB>> OnDiskGraphDB::open(
     StringRef AbsPath, StringRef HashName, unsigned HashByteSize,
     std::unique_ptr<OnDiskGraphDB> UpstreamDB, FaultInPolicy Policy) {
@@ -1358,6 +1378,11 @@ Expected<std::unique_ptr<OnDiskGraphDB>> OnDiskGraphDB::open(
 
   uint64_t MaxIndexSize = 8 * GB;
   uint64_t MaxDataPoolSize = 16 * GB;
+
+  if (useSmallMappedFiles(AbsPath)) {
+    MaxIndexSize = 1 * GB;
+    MaxDataPoolSize = 2 * GB;
+  }
 
   auto CustomSize = getOverriddenMaxMappingSize();
   if (!CustomSize)
