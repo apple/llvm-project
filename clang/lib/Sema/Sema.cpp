@@ -1202,6 +1202,10 @@ void Sema::ActOnEndOfTranslationUnit() {
     }
   }
 
+  if (getASTContext().isObjCMsgSendUsageFileSpecified())
+    getASTContext().writeObjCMsgSendUsages(
+        getASTContext().getObjCMsgSendUsageFilename());
+
   DiagnoseUnterminatedPragmaAlignPack();
   DiagnoseUnterminatedPragmaAttribute();
   OpenMP().DiagnoseUnterminatedOpenMPDeclareTarget();
