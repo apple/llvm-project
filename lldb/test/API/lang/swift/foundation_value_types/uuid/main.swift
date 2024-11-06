@@ -12,6 +12,7 @@
 import Foundation
 
 func main() {
+  //% self.runCmd("settings set target.experimental.swift-read-metadata-from-file-cache false")
   var uuid = UUID(uuidString: "AE5DE240-397B-4D09-9B99-D38E4CBC9952")!
   print("done!") //% self.expect("frame variable uuid", substrs=['AE5DE240-397B-4D09-9B99-D38E4CBC9952'])
    //% self.expect("expression -d run -- uuid", substrs=['AE5DE240-397B-4D09-9B99-D38E4CBC9952'])

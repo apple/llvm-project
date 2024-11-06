@@ -12,6 +12,9 @@ class TestSwiftFoundationTypeNotification(lldbtest.TestBase):
     @swiftTest
     def test(self):
         self.build()
+        self.runCmd(
+            "settings set target.experimental.swift-read-metadata-from-file-cache false"
+        )
         target, process, thread, bkpt = lldbutil.run_to_source_breakpoint(
             self, 'break here', lldb.SBFileSpec('main.swift'))
         # global
