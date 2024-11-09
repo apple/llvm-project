@@ -1,6 +1,6 @@
 // Test that we can set breakpoints in the REPL.
 // REQUIRES: swift
-// RUN: %lldb --repl -O "log enable gdb-remote packets" < %s | FileCheck %s
+// RUN: %lldb --repl -O "log enable gdb-remote packets" -O "log enable lldb breakpoint" -O "log enable lldb process" < %s | FileCheck %s
 
 func foo() -> Int {
   return 0
@@ -10,4 +10,4 @@ func foo() -> Int {
 // CHECK: Breakpoint 1: {{.*}}foo() {{.*}} repl.swift:6:3, address = 0x
 
 // CHECK: Execution stopped at breakpoint
-foo()
+fooey()
