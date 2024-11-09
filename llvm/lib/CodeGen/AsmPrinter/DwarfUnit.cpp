@@ -1049,6 +1049,11 @@ void DwarfUnit::constructTypeDIE(DIE &Buffer, const DICompositeType *CTy) {
       addDIEEntry(Buffer, dwarf::DW_AT_specification,
                   *getOrCreateContextDIE(SpecifiedFrom));
 
+    auto AlternativeModuleName = CTy->getAlternativeModuleName();
+    if (!AlternativeModuleName.empty())
+      addString(Buffer, dwarf::DW_AT_LLVM_alternative_module_name,
+                AlternativeModuleName);
+
     break;
   }
   default:

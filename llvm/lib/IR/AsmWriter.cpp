@@ -2221,6 +2221,7 @@ static void writeDICompositeType(raw_ostream &Out, const DICompositeType *N,
   Printer.printMetadata("annotations", N->getRawAnnotations());
   if (auto *SpecificationOf = N->getRawSpecificationOf())
     Printer.printMetadata("specification_of", SpecificationOf);
+  Printer.printString("alternative_module_name", N->getAlternativeModuleName());
   Out << ")";
 }
 
