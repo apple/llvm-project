@@ -614,7 +614,7 @@ Error opts::symbols::findTypes(lldb_private::Module &Module) {
       Symfile.FindTypes(query, results);
     }
   } else if (!MangledName.empty()) {
-    Opts = TypeQueryOptions::e_search_by_mangled_name;
+    auto Opts = TypeQueryOptions::e_search_by_mangled_name;
     if (ContextOr->IsValid()) {
       TypeQuery query(*ContextOr, ConstString(MangledName), Opts);
       if (!Language.empty())

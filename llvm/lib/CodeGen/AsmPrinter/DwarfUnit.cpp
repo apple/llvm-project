@@ -27,6 +27,7 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include <cassert>
 #include <cstdint>
@@ -642,7 +643,7 @@ void DwarfUnit::updateAcceleratorTables(const DIScope *Context,
   if (Ty->getName().empty())
     return;
   if (Ty->isForwardDecl())
-    return;
+    llvm::errs() << "Here";
 
   // add temporary record for this type to be added later
 

@@ -1831,7 +1831,7 @@ DIE *DWARFLinker::DIECloner::cloneDIE(const DWARFDie &InputDIE,
     Unit.addNamespaceAccelerator(Die, AttrInfo.Name);
   } else if (Tag == dwarf::DW_TAG_imported_declaration && AttrInfo.Name) {
     Unit.addNamespaceAccelerator(Die, AttrInfo.Name);
-  } else if (isTypeTag(Tag) && !AttrInfo.IsDeclaration) {
+  } else if (isTypeTag(Tag)) {
     bool Success = getDIENames(InputDIE, AttrInfo, DebugStrPool);
     uint64_t RuntimeLang =
         dwarf::toUnsigned(InputDIE.find(dwarf::DW_AT_APPLE_runtime_class))

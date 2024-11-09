@@ -14,6 +14,7 @@
 #include "LLVMContextImpl.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/APSInt.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
@@ -668,13 +669,13 @@ DICompositeType *
 DIBuilder::createForwardDecl(unsigned Tag, StringRef Name, DIScope *Scope,
                              DIFile *F, unsigned Line, unsigned RuntimeLang,
                              uint64_t SizeInBits, uint32_t AlignInBits,
-                             StringRef UniqueIdentifier) {
+                             StringRef UniqueIdentifier, StringRef AlternativeModuleName) {
   // FIXME: Define in terms of createReplaceableForwardDecl() by calling
   // replaceWithUniqued().
   auto *RetTy = DICompositeType::get(
       VMContext, Tag, Name, F, Line, getNonCompileUnitScope(Scope), nullptr,
       SizeInBits, AlignInBits, 0, DINode::FlagFwdDecl, nullptr, RuntimeLang,
-      nullptr, nullptr, UniqueIdentifier);
+      nullptr, nullptr, UniqueIdentifier, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, AlternativeModuleName);
   trackIfUnresolved(RetTy);
   return RetTy;
 }
@@ -683,13 +684,13 @@ DICompositeType *DIBuilder::createReplaceableCompositeType(
     unsigned Tag, StringRef Name, DIScope *Scope, DIFile *F, unsigned Line,
     unsigned RuntimeLang, uint64_t SizeInBits, uint32_t AlignInBits,
     DINode::DIFlags Flags, StringRef UniqueIdentifier,
-    DINodeArray Annotations) {
+    DINodeArray Annotations, StringRef AlternativeModuleName) {
   auto *RetTy =
       DICompositeType::getTemporary(
           VMContext, Tag, Name, F, Line, getNonCompileUnitScope(Scope), nullptr,
           SizeInBits, AlignInBits, 0, Flags, nullptr, RuntimeLang, nullptr,
           nullptr, UniqueIdentifier, nullptr, nullptr, nullptr, nullptr,
-          nullptr, Annotations)
+          nullptr, Annotations, nullptr, 0, AlternativeModuleName)
           .release();
   trackIfUnresolved(RetTy);
   return RetTy;

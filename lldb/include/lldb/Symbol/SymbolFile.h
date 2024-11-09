@@ -22,6 +22,7 @@
 #include "lldb/Symbol/TypeList.h"
 #include "lldb/Symbol/TypeSystem.h"
 #include "lldb/Target/Statistics.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/XcodeSDK.h"
 #include "lldb/lldb-private.h"
@@ -498,7 +499,7 @@ public:
            Type::EncodingDataType encoding_uid_type, const Declaration &decl,
            const CompilerType &compiler_qual_type,
            Type::ResolveState compiler_type_resolve_state,
-           uint32_t opaque_payload = 0) = 0;
+           uint32_t opaque_payload = 0, ConstString alternative_module_name = ConstString()) = 0;
 
   virtual lldb::TypeSP CopyType(const lldb::TypeSP &other_type) = 0;
 
@@ -604,11 +605,11 @@ public:
                         const Declaration &decl,
                         const CompilerType &compiler_qual_type,
                         Type::ResolveState compiler_type_resolve_state,
-                        uint32_t opaque_payload = 0) override {
+                        uint32_t opaque_payload = 0, ConstString alternative_module_name = ConstString()) override {
      lldb::TypeSP type_sp (new Type(
          uid, this, name, byte_size, context, encoding_uid,
          encoding_uid_type, decl, compiler_qual_type,
-         compiler_type_resolve_state, opaque_payload));
+         compiler_type_resolve_state, opaque_payload, alternative_module_name));
      m_type_list.Insert(type_sp);
      return type_sp;
   }

@@ -555,6 +555,8 @@ public:
   /// Return the language-specific payload.
   void SetPayload(Payload opaque_payload) { m_payload = opaque_payload; }
 
+  ConstString GetAlternativeModuleName() const { return m_alternative_module_name; }
+
 protected:
   ConstString m_name;
   SymbolFile *m_symbol_file = nullptr;
@@ -571,6 +573,8 @@ protected:
   /// Language-specific flags.
   Payload m_payload;
 
+  ConstString m_alternative_module_name;
+
   Type *GetEncodingType();
 
   bool ResolveCompilerType(ResolveState compiler_type_resolve_state);
@@ -585,7 +589,7 @@ private:
        std::optional<uint64_t> byte_size, SymbolContextScope *context,
        lldb::user_id_t encoding_uid, EncodingDataType encoding_uid_type,
        const Declaration &decl, const CompilerType &compiler_qual_type,
-       ResolveState compiler_type_resolve_state, uint32_t opaque_payload = 0);
+       ResolveState compiler_type_resolve_state, uint32_t opaque_payload = 0, ConstString alternative_module_name = ConstString());
 
   // This makes an invalid type.  Used for functions that return a Type when
   // they get an error.
