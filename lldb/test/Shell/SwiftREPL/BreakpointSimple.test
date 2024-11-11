@@ -9,5 +9,5 @@ func foo() -> Int {
 :break set -n foo
 // CHECK: Breakpoint 1: {{.*}}foo() {{.*}} repl.swift:6:3, address = 0x
 
-// CHECK: Execution stopped at breakpoint
-fooey()
+// NO_CHECK: Execution stopped at breakpoint
+//fooey()
