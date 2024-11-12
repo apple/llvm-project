@@ -189,6 +189,7 @@ def ObjCIndirectCopyRestoreExpr : StmtNode<Expr>;
 def ObjCBoolLiteralExpr : StmtNode<Expr>;
 def ObjCSubscriptRefExpr : StmtNode<Expr>;
 def ObjCAvailabilityCheckExpr : StmtNode<Expr>;
+def ObjCFeatureCheckExpr : StmtNode<Expr>;
 
 // Obj-C ARC Expressions.
 def ObjCBridgedCastExpr : StmtNode<ExplicitCastExpr>;

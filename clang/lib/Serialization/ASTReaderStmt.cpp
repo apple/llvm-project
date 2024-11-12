@@ -1673,6 +1673,14 @@ void ASTStmtReader::VisitObjCAvailabilityCheckExpr(ObjCAvailabilityCheckExpr *E)
   E->VersionToCheck.SourceVersion = Record.readVersionTuple();
 }
 
+void ASTStmtReader::VisitObjCFeatureCheckExpr(ObjCFeatureCheckExpr *E) {
+  VisitExpr(E);
+  SourceRange R = Record.readSourceRange();
+  E->AtLoc = R.getBegin();
+  E->RParen = R.getEnd();
+  E->FeatureName = Record.readIdentifier();
+}
+
 //===----------------------------------------------------------------------===//
 // C++ Expressions and Statements
 //===----------------------------------------------------------------------===//
@@ -3571,6 +3579,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case EXPR_OBJC_AVAILABILITY_CHECK:
       S = new (Context) ObjCAvailabilityCheckExpr(Empty);
+      break;
+
+    case EXPR_OBJC_FEATURE_CHECK:
+      S = new (Context) ObjCFeatureCheckExpr(Empty);
       break;
 
     case STMT_SEH_LEAVE:

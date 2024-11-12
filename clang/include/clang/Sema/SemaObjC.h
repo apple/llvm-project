@@ -900,6 +900,10 @@ public:
   ActOnObjCAvailabilityCheckExpr(llvm::ArrayRef<AvailabilitySpec> AvailSpecs,
                                  SourceLocation AtLoc, SourceLocation RParen);
 
+  ExprResult ActOnObjCFeatureCheckExpr(IdentifierInfo *FeatureName,
+                                       SourceLocation AtLoc,
+                                       SourceLocation RParen);
+
   /// Prepare a conversion of the given expression to an ObjC object
   /// pointer type.
   CastKind PrepareCastToObjCObjectPointer(ExprResult &E);

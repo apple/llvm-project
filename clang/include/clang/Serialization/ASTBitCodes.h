@@ -1806,6 +1806,9 @@ enum StmtCode {
   /// An ObjCAvailabilityCheckExpr record.
   EXPR_OBJC_AVAILABILITY_CHECK,
 
+  /// An ObjCAvailabilityCheckExpr record.
+  EXPR_OBJC_FEATURE_CHECK,
+
   // C++
 
   /// A CXXCatchStmt record.
@@ -1917,15 +1920,15 @@ enum StmtCode {
 
   /* TO_UPSTREAM(BoundsSafety) ON */
   // BoundsSafety
-  EXPR_ASSUMPTION,                   // AssumptionExpr
-  EXPR_BOUNDS_SAFETY_POINTER_PROMOTION,  // BoundsSafetyPointerPromotionExpr
-  EXPR_FORGE_PTR,                    // ForgePtrExpr
-  EXPR_GET_BOUND,                    // GetBoundExpr
-  EXPR_PREDEFINED_BOUNDS_CHECK,      // PredefinedBoundsCheckExpr
-  EXPR_BOUNDS_CHECK,                 // BoundsCheckExpr
-  EXPR_MATERIALIZE_SEQUENCE,         // MaterializeSequenceExpr
-  EXPR_TERMINATED_BY_TO_INDEXABLE,   // TerminatedByToIndexableExpr
-  EXPR_TERMINATED_BY_FROM_INDEXABLE, // TerminatedByFromIndexableExpr
+  EXPR_ASSUMPTION,                      // AssumptionExpr
+  EXPR_BOUNDS_SAFETY_POINTER_PROMOTION, // BoundsSafetyPointerPromotionExpr
+  EXPR_FORGE_PTR,                       // ForgePtrExpr
+  EXPR_GET_BOUND,                       // GetBoundExpr
+  EXPR_PREDEFINED_BOUNDS_CHECK,         // PredefinedBoundsCheckExpr
+  EXPR_BOUNDS_CHECK,                    // BoundsCheckExpr
+  EXPR_MATERIALIZE_SEQUENCE,            // MaterializeSequenceExpr
+  EXPR_TERMINATED_BY_TO_INDEXABLE,      // TerminatedByToIndexableExpr
+  EXPR_TERMINATED_BY_FROM_INDEXABLE,    // TerminatedByFromIndexableExpr
   /* TO_UPSTREAM(BoundsSafety) OFF */
 
   // Microsoft

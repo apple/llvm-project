@@ -579,6 +579,8 @@ public:
   /// This list is sorted.
   std::vector<std::string> ModuleFeatures;
 
+  std::vector<std::string> FeatureAvailability;
+
   /// Options for parsing comments.
   CommentOptions CommentOpts;
 

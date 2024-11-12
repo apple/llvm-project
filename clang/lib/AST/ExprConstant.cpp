@@ -12318,6 +12318,26 @@ public:
     return Success(E->getValue(), E);
   }
 
+  bool VisitObjCFeatureCheckExpr(const ObjCFeatureCheckExpr *E) {
+    IdentifierInfo *IdentInfo = E->getFeatureName();
+    auto FeatureName = IdentInfo->getName();
+    auto FeatureInfo = Info.Ctx.getFeatureAvailInfo(FeatureName);
+    unsigned ResultInt;
+
+    switch (FeatureInfo.Kind) {
+    case ASTContext::FeatureAvailKind::On:
+      ResultInt = 1;
+      break;
+    case ASTContext::FeatureAvailKind::Off:
+      ResultInt = 0;
+      break;
+    case ASTContext::FeatureAvailKind::Dynamic:
+      return false;
+    }
+
+    return Success(APSInt(APInt(1, ResultInt)), E);
+  }
+
   bool CheckReferencedDecl(const Expr *E, const Decl *D);
   bool VisitDeclRefExpr(const DeclRefExpr *E) {
     if (CheckReferencedDecl(E, E->getDecl()))

@@ -2901,6 +2901,7 @@ DEF_TRAVERSE_STMT(ObjCBridgedCastExpr, {
 })
 
 DEF_TRAVERSE_STMT(ObjCAvailabilityCheckExpr, {})
+DEF_TRAVERSE_STMT(ObjCFeatureCheckExpr, {})
 DEF_TRAVERSE_STMT(ParenExpr, {})
 DEF_TRAVERSE_STMT(ParenListExpr, {})
 DEF_TRAVERSE_STMT(SYCLUniqueStableNameExpr, {

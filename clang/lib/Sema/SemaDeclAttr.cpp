@@ -2599,6 +2599,19 @@ static void handleAvailabilityAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 }
 
+static void handleFeatureAvailabilityAttr(Sema &S, Decl *D,
+                                          const ParsedAttr &AL) {
+  if (!AL.isArgIdent(0)) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_n_type)
+        << AL << 0 << AANT_ArgumentIdentifier;
+    return;
+  }
+
+  // FIXME: error checking
+  IdentifierInfo *II = AL.getArgAsIdent(0)->Ident;
+  D->addAttr(::new (S.Context) FeatureAvailabilityAttr(S.Context, AL, II));
+}
+
 static void handleExternalSourceSymbolAttr(Sema &S, Decl *D,
                                            const ParsedAttr &AL) {
   if (!AL.checkAtLeastNumArgs(S, 1) || !AL.checkAtMostNumArgs(S, 4))
@@ -8678,6 +8691,10 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     handleSimpleAttribute<ArmLocallyStreamingAttr>(S, D, AL);
     break;
 
+  case ParsedAttr::AT_FeatureAvailability:
+    handleFeatureAvailabilityAttr(S, D, AL);
+    break;
+
   case ParsedAttr::AT_ArmNew:
     S.ARM().handleNewAttr(D, AL);
     break;
@@ -9116,6 +9133,12 @@ void Sema::PopParsingDeclaration(ParsingDeclState state, Decl *decl) {
         // the decl is invalid.
         if (!decl->isInvalidDecl())
           handleDelayedAvailabilityCheck(diag, decl);
+        break;
+
+      case DelayedDiagnostic::FeatureAvailability:
+        // Don't bother giving diagnostics if the decl is invalid.
+        if (!decl->isInvalidDecl())
+          handleDelayedFeatureAvailabilityCheck(diag, decl);
         break;
 
       case DelayedDiagnostic::Access:

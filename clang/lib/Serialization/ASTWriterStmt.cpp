@@ -1638,6 +1638,13 @@ void ASTStmtWriter::VisitObjCAvailabilityCheckExpr(ObjCAvailabilityCheckExpr *E)
   Code = serialization::EXPR_OBJC_AVAILABILITY_CHECK;
 }
 
+void ASTStmtWriter::VisitObjCFeatureCheckExpr(ObjCFeatureCheckExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceRange(E->getSourceRange());
+  Record.AddIdentifierRef(E->getFeatureName());
+  Code = serialization::EXPR_OBJC_FEATURE_CHECK;
+}
+
 //===----------------------------------------------------------------------===//
 // C++ Expressions and Statements.
 //===----------------------------------------------------------------------===//

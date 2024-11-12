@@ -822,6 +822,22 @@ public:
     return DiagAllocator;
   }
 
+  enum FeatureAvailKind { On, Off, Dynamic };
+
+  struct FeatureAvailInfo {
+    FeatureAvailKind Kind;
+    std::string PredFnName;
+  };
+
+  FeatureAvailInfo getFeatureAvailInfo(StringRef FeatureName) const;
+
+  void inheritFeatureAvailability(Decl *Dst, Decl *Src);
+
+  SmallVector<FeatureAvailabilityAttr *, 2>
+  getFeatureAvailabilityAttrs(const Decl *D) const;
+
+  bool hasUnavailableFeature(const Decl *D) const;
+
   const TargetInfo &getTargetInfo() const { return *Target; }
   const TargetInfo *getAuxTargetInfo() const { return AuxTarget; }
 

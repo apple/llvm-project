@@ -2174,7 +2174,15 @@ public:
   /// Issue any -Wunguarded-availability warnings in \c FD
   void DiagnoseUnguardedAvailabilityViolations(Decl *FD);
 
+  void DiagnoseUnguardedFeatureAvailabilityViolations(Decl *FD);
+
   void handleDelayedAvailabilityCheck(sema::DelayedDiagnostic &DD, Decl *Ctx);
+
+  void handleDelayedFeatureAvailabilityCheck(sema::DelayedDiagnostic &DD,
+                                             Decl *Ctx);
+
+  void DiagnoseFeatureAvailabilityOfDecl(NamedDecl *D,
+                                         ArrayRef<SourceLocation> Locs);
 
   /// Retrieve the current function, if any, that should be analyzed for
   /// potential availability violations.

@@ -5318,6 +5318,9 @@ void CodeGenModule::EmitTentativeDefinition(const VarDecl *D) {
       return;
   }
 
+  if (Context.hasUnavailableFeature(D))
+    return;
+
   // The tentative definition is the only definition.
   EmitGlobalVarDefinition(D);
 }
@@ -6989,6 +6992,9 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
   if (auto *FD = dyn_cast<FunctionDecl>(D); FD && FD->isImmediateFunction())
     return;
 
+  if (Context.hasUnavailableFeature(D))
+    return;
+
   switch (D->getKind()) {
   case Decl::CXXConversion:
   case Decl::CXXMethod:
@@ -7118,6 +7124,8 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
   }
   case Decl::ObjCMethod: {
     auto *OMD = cast<ObjCMethodDecl>(D);
+    if (Context.hasUnavailableFeature(OMD->getClassInterface()))
+      break;
     // If this is not a prototype, emit the body.
     if (OMD->getBody())
       CodeGenFunction(*this).GenerateObjCMethod(OMD);

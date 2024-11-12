@@ -1393,6 +1393,9 @@ ExprResult Parser::ParseCastExpression(CastParseKind ParseKind,
   case tok::kw___builtin_available:
     Res = ParseAvailabilityCheckExpr(Tok.getLocation());
     break;
+  case tok::kw___builtin_feature:
+    Res = ParseFeatureCheckExpr(Tok.getLocation());
+    break;
   case tok::kw___builtin_va_arg:
   case tok::kw___builtin_offsetof:
   case tok::kw___builtin_choose_expr:
@@ -4250,3 +4253,25 @@ ExprResult Parser::ParseUnsafeTerminatedByFromIndexable() {
       T.getCloseLocation());
 }
 /* TO_UPSTREAM(BoundsSafety) OFF*/
+
+ExprResult Parser::ParseFeatureCheckExpr(SourceLocation BeginLoc) {
+  assert(Tok.is(tok::kw___builtin_feature) ||
+         Tok.isObjCAtKeyword(tok::objc_feature));
+
+  // Eat the feature or __builtin_feature.
+  ConsumeToken();
+
+  BalancedDelimiterTracker Parens(*this, tok::l_paren);
+
+  if (Parens.expectAndConsume())
+    return ExprError();
+
+  IdentifierLoc *FeatureIdentifier = ParseIdentifierLoc();
+  IdentifierInfo *FeatureName = FeatureIdentifier->Ident;
+
+  if (Parens.consumeClose())
+    return ExprError();
+
+  return Actions.ObjC().ActOnObjCFeatureCheckExpr(FeatureName, BeginLoc,
+                                                  Parens.getCloseLocation());
+}

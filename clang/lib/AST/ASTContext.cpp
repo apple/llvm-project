@@ -942,6 +942,81 @@ ASTContext::ASTContext(LangOptions &LOpts, SourceManager &SM,
   addTranslationUnitDecl();
 }
 
+ASTContext::FeatureAvailInfo
+ASTContext::getFeatureAvailInfo(StringRef FeatureName) const {
+  FeatureAvailInfo Info;
+
+  for (auto &V : getLangOpts().FeatureAvailability) {
+    unsigned EndOfKey = V.find(':');
+    std::string Key = V.substr(0, EndOfKey);
+
+    if (Key != FeatureName)
+      continue;
+
+    unsigned EndOfKind = V.find(':', EndOfKey + 1);
+    std::string Kind = V.substr(EndOfKey + 1, EndOfKind - (EndOfKey + 1));
+
+    if (Kind == "on")
+      Info.Kind = FeatureAvailKind::On;
+    else if (Kind == "off")
+      Info.Kind = FeatureAvailKind::Off;
+    else if (Kind == "dyn") {
+      Info.Kind = FeatureAvailKind::Dynamic;
+      Info.PredFnName = V.substr(EndOfKind + 1, V.size() - (EndOfKind + 1));
+    } else
+      llvm_unreachable("invalid FeatureAvailKind");
+    return Info;
+  }
+
+  llvm_unreachable("feature not found");
+}
+
+void ASTContext::inheritFeatureAvailability(Decl *Dst, Decl *Src) {
+  if (Dst->isInvalidDecl())
+    return;
+
+  if (!Src->hasAttrs())
+    return;
+
+  for (auto *Attr : Src->getAttrs()) {
+    auto *FA = dyn_cast<FeatureAvailabilityAttr>(Attr);
+    if (!FA)
+      continue;
+    auto *NewAttr = FA->clone(*this);
+    NewAttr->setInherited(true);
+    Dst->addAttr(NewAttr);
+  }
+}
+
+SmallVector<FeatureAvailabilityAttr *, 2>
+ASTContext::getFeatureAvailabilityAttrs(const Decl *D) const {
+  if (!D->hasAttrs())
+    return {};
+
+  SmallVector<FeatureAvailabilityAttr *, 2> Attrs;
+
+  for (auto *Attr : D->getAttrs())
+    if (auto *FA = dyn_cast<FeatureAvailabilityAttr>(Attr))
+      Attrs.push_back(FA);
+
+  return Attrs;
+}
+
+bool ASTContext::hasUnavailableFeature(const Decl *D) const {
+  if (D->hasAttrs())
+    for (auto *Attr : D->getAttrs()) {
+      auto *FA = dyn_cast<FeatureAvailabilityAttr>(Attr);
+      if (!FA)
+        continue;
+      auto FeatureName = FA->getName()->getName();
+      auto FeatureInfo = getFeatureAvailInfo(FeatureName);
+      if (FeatureInfo.Kind == FeatureAvailKind::Off)
+        return true;
+    }
+
+  return false;
+}
+
 void ASTContext::cleanup() {
   // Release the DenseMaps associated with DeclContext objects.
   // FIXME: Is this the ideal solution?

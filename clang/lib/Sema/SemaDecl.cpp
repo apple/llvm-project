@@ -17246,6 +17246,9 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
     if (Body && FSI->HasPotentialAvailabilityViolations)
       DiagnoseUnguardedAvailabilityViolations(dcl);
 
+    if (Body && FSI->HasPotentialFeatureAvailabilityViolations)
+      DiagnoseUnguardedFeatureAvailabilityViolations(dcl);
+
     assert(!FSI->ObjCShouldCallSuper &&
            "This should only be set for ObjC methods, which should have been "
            "handled in the block above.");
