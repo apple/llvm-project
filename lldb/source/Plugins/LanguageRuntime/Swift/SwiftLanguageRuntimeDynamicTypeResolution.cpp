@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LLDBMemoryReader.h"
+#include "Plugins/TypeSystem/Swift/TypeSystemSwiftTypeRef.h"
 #include "ReflectionContextInterface.h"
 #include "SwiftLanguageRuntime.h"
 #include "SwiftLanguageRuntimeImpl.h"
@@ -21,6 +22,7 @@
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "Plugins/TypeSystem/Swift/SwiftDemangle.h"
 #include "lldb/Host/SafeMachO.h"
+#include "lldb/Symbol/Type.h"
 #include "lldb/Symbol/Variable.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ProcessStructReader.h"
@@ -31,7 +33,9 @@
 #include "lldb/Utility/Timer.h"
 #include "lldb/ValueObject/ValueObjectMemory.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 
+#include "lldb/lldb-private-enumerations.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/ASTMangler.h"
 #include "swift/AST/ASTWalker.h"
@@ -2981,6 +2985,167 @@ SwiftLanguageRuntimeImpl::GetTypeRef(CompilerType type,
   return type_ref;
 }
 
+CompilerType SwiftLanguageRuntimeImpl::AdjustTypeForOriginallyDefinedInModule(
+    CompilerType type) {
+  if (!type)
+    return type;
+
+  auto ts = type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
+  assert(ts);
+  if (!ts)
+    return type;
+
+  auto &tss = ts->GetTypeSystemSwiftTypeRef();
+
+  swift::Demangle::Demangler dem;
+  auto *node = dem.demangleSymbol(type.GetMangledTypeName());
+
+  auto type_node = node->getFirstChild()->getFirstChild();
+  assert(node && node->hasChildren());
+  if (!node || !node->hasChildren()) {
+    LLDB_LOG(GetLog(LLDBLog::Types),
+             "[AdjustTypeForOriginallyDefinedInModule] Unexpected node for "
+             "type with mangled name {0}",
+             type.GetMangledTypeName());
+
+    return type;
+  }
+
+  bool did_transform = false;
+  std::function<NodePointer(NodePointer)> transform_all_module_nodes =
+      [&](NodePointer node) -> NodePointer {
+    auto compiler_type = tss.RemangleAsType(dem, node);
+    if (!compiler_type) {
+      LLDB_LOG(GetLog(LLDBLog::Types),
+               "[AdjustTypeForOriginallyDefinedInModule] Unexpected mangling "
+               "error when mangling adjusted node for type with mangled name "
+               "{0}",
+               type.GetMangledTypeName());
+
+        return node;
+      }
+
+      lldb::TypeSP lldb_type =
+          tss.GetCachedType(compiler_type.GetMangledTypeName());
+
+      if (!lldb_type || true) {
+        TypeQuery query(compiler_type.GetMangledTypeName(), e_find_one | e_search_by_mangled_name);
+        TypeResults results;
+        ModuleList &module_list = m_process.GetTarget().GetImages();
+        module_list.FindTypes(tss.GetModule(), query, results);
+        lldb_type = results.GetFirstType();
+
+        if (!lldb_type) {
+          TypeQuery query(compiler_type.GetMangledTypeName(), e_find_one);
+          TypeResults results;
+          ModuleList &module_list = m_process.GetTarget().GetImages();
+          module_list.FindTypes(tss.GetModule(), query, results);
+          lldb_type = results.GetFirstType();
+
+          if (!lldb_type) {
+
+            LLDB_LOGV(
+                GetLog(LLDBLog::Types),
+                "[AdjustTypeForOriginallyDefinedInModule] Could not find lldb "
+                "type for type with mangled name {0}",
+                type.GetMangledTypeName());
+
+            return node;
+          }
+        }
+      }
+
+    StringRef alternative_module_name;
+    if (!lldb_type->GetAlternativeModuleName().IsEmpty()) {
+        alternative_module_name = lldb_type->GetAlternativeModuleName();
+    } else {
+      auto context = lldb_type->GetDeclContext();
+      if (context.size() <= 1)
+          return node;
+
+      for (auto it = context.rbegin() + 1; it != context.rend(); ++it) {
+          if (it->kind != CompilerContextKind::ClassOrStruct)
+            return node;
+
+        TypeQuery query(it->name, e_find_one | e_search_by_mangled_name);
+        TypeResults results;
+        ModuleList &module_list = m_process.GetTarget().GetImages();
+        module_list.FindTypes(tss.GetModule(), query, results);
+        auto parent_type = results.GetFirstType();
+
+        if (!parent_type) {
+          TypeQuery query(it->name, e_find_one);
+          TypeResults results;
+          ModuleList &module_list = m_process.GetTarget().GetImages();
+          module_list.FindTypes(tss.GetModule(), query, results);
+          parent_type = results.GetFirstType();
+
+          if (!parent_type)
+            return node;
+        }
+          if (!parent_type->GetAlternativeModuleName().IsEmpty()) {
+            alternative_module_name = parent_type->GetAlternativeModuleName();
+            break;
+          }
+      }
+    }
+
+    bool did_transform_module = false;
+    auto module_tranformer =
+        [&](NodePointer module_node,
+            llvm::StringRef module_name) -> NodePointer {
+          if (did_transform_module)
+            return module_node;
+      if (module_node->getText() == swift::MANGLING_MODULE_OBJC)
+        return module_node;
+
+      // If the mangled name's module and module context module match then
+      // there's nothing to do.
+      if (module_node->getText() == module_name)
+        return module_node;
+
+      // Otherwise this is a type who is originally defined in a separate
+      // module. Adjust the module name.
+      auto *adjusted_module_node = dem.createNodeWithAllocatedText(
+          Node::Kind::Module, module_name);
+          did_transform_module = true;
+      return adjusted_module_node;
+    };
+
+    // NodePointer transformed = TypeSystemSwiftTypeRef::Transform(dem, node, [&](NodePointer module_node) {
+    //       return module_tranformer(module_node, module_context);
+    //     });
+    NodePointer transformed = TypeSystemSwiftTypeRef::TransformModuleName(
+        node, dem, [&](NodePointer module_node) {
+          return module_tranformer(module_node, alternative_module_name);
+        });
+
+    NodePointer t2 = TypeSystemSwiftTypeRef::TransformBoundGenericTypes(dem,
+        transformed, transform_all_module_nodes);
+    return t2;
+  };
+  // First transform the module of the type.
+
+  type_node = transform_all_module_nodes(type_node);
+  node->getFirstChild()->replaceChild(0, type_node);
+  // if (!did_transform)
+  //   return type;
+
+  auto mangling = mangleNode(node);
+  assert(mangling.isSuccess());
+  if (!mangling.isSuccess()) {
+    LLDB_LOG(GetLog(LLDBLog::Types),
+             "[AdjustTypeForOriginallyDefinedInModule] Unexpected mangling "
+             "error when mangling adjusted node for type with mangled name {0}",
+             type.GetMangledTypeName());
+
+    return type;
+  }
+
+  auto str = mangling.result();
+  return ts->GetTypeFromMangledTypename(ConstString(str));
+}
+
 const swift::reflection::TypeInfo *
 SwiftLanguageRuntimeImpl::GetSwiftRuntimeTypeInfo(
     CompilerType type, ExecutionContextScope *exe_scope,
@@ -3011,6 +3176,8 @@ SwiftLanguageRuntimeImpl::GetSwiftRuntimeTypeInfo(
       type = BindGenericTypeParameters(*frame, type);
     }
 
+
+  type = AdjustTypeForOriginallyDefinedInModule(type);
   // BindGenericTypeParameters imports the type into the scratch
   // context, but we need to resolve (any DWARF links in) the typeref
   // in the original module.

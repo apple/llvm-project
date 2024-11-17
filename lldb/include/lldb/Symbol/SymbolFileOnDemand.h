@@ -232,7 +232,7 @@ public:
                         const Declaration &decl,
                         const CompilerType &compiler_qual_type,
                         Type::ResolveState compiler_type_resolve_state,
-                        uint32_t opaque_payload = 0) override {
+                        uint32_t opaque_payload = 0, ConstString alternative_module_name = ConstString()) override {
     return m_sym_file_impl->MakeType(
         uid, name, byte_size, context, encoding_uid, encoding_uid_type, decl,
         compiler_qual_type, compiler_type_resolve_state, opaque_payload);

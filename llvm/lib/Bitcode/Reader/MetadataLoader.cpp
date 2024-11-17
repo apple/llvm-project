@@ -1634,6 +1634,7 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
     Metadata *Rank = nullptr;
     Metadata *Annotations = nullptr;
     Metadata *SpecificationOf = nullptr;
+    MDString *AlternativeModuleName = nullptr;
     auto *Identifier = getMDString(Record[15]);
     // If this module is being parsed so that it can be ThinLTO imported
     // into another module, composite types only need to be imported as
@@ -1685,15 +1686,53 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
       if (Record.size() > 23) {
         SpecificationOf = getMDOrNull(Record[23]);
       }
+      if (Record.size() > 24) {
+        if (uint64_t ID = Record[24]) {
+          // Field 24 used to be occupied by the spare bits mask, which was
+          // encoded as an uint64_t. To not crash when loading a bitcode file
+          // with the old spare bits mask format, we take advantage of the fact
+          // that strings cannot be forward declared, and only load the field if
+          // it's already loaded. This lambda is a copy of getMDString, but
+          // which fails if the field is not forward declared.
+          // TODO: When we don't need to support bitcode with spare bits mask,
+          // replace this with a call to getMDString.
+          auto GetAlternativeName = [&](uint64_t ID) -> Metadata * {
+            if (ID < MDStringRef.size())
+              return lazyLoadOneMDString(ID);
+            if (!IsDistinct) {
+              if (auto *MD = MetadataList.lookup(ID))
+                return MD;
+              // If lazy-loading is enabled, we try recursively to load the
+              // operand instead of creating a temporary.
+              if (ID <
+                  (MDStringRef.size() + GlobalMetadataBitPosIndex.size())) {
+                // Create a temporary for the node that is referencing the
+                // operand we will lazy-load. It is needed before recursing in
+                // case there are uniquing cycles.
+                MetadataList.getMetadataFwdRef(NextMetadataNo);
+                lazyLoadOneMetadata(ID, Placeholders);
+                return MetadataList.lookup(ID);
+              }
+            }
+            if (auto *MD = MetadataList.getMetadataIfResolved(ID))
+              return MD;
+            return nullptr;
+          };
+          ID = ID - 1;
+          Metadata *MaybeAlternativeModuleName = GetAlternativeName(ID);
+          AlternativeModuleName =
+              dyn_cast_or_null<MDString>(MaybeAlternativeModuleName);
+        }
+      }
     }
     DICompositeType *CT = nullptr;
     if (Identifier)
       CT = DICompositeType::buildODRType(
           Context, *Identifier, Tag, Name, File, Line, Scope, BaseType,
           SizeInBits, AlignInBits, OffsetInBits, SpecificationOf,
-          NumExtraInhabitants, Flags, Elements, RuntimeLang, VTableHolder,
-          TemplateParams, Discriminator, DataLocation, Associated, Allocated,
-          Rank, Annotations);
+          NumExtraInhabitants, AlternativeModuleName, Flags, Elements,
+          RuntimeLang, VTableHolder, TemplateParams, Discriminator,
+          DataLocation, Associated, Allocated, Rank, Annotations);
 
     // Create a node if we didn't get a lazy ODR type.
     if (!CT)
@@ -1703,7 +1742,7 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
                             Elements, RuntimeLang, VTableHolder, TemplateParams,
                             Identifier, Discriminator, DataLocation, Associated,
                             Allocated, Rank, Annotations, SpecificationOf,
-                            NumExtraInhabitants));
+                            NumExtraInhabitants, AlternativeModuleName));
     if (!IsNotUsedInTypeRef && Identifier)
       MetadataList.addTypeRef(*Identifier, *cast<DICompositeType>(CT));
 

@@ -13,6 +13,7 @@
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Debugger.h"
+#include "lldb/Core/Mangled.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Expression/IRMemoryMap.h"
@@ -23,6 +24,7 @@
 #include "lldb/Symbol/LineTable.h"
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/Symtab.h"
+#include "lldb/Symbol/Type.h"
 #include "lldb/Symbol/TypeList.h"
 #include "lldb/Symbol/TypeMap.h"
 #include "lldb/Symbol/VariableList.h"
@@ -179,6 +181,10 @@ static cl::opt<FindType> Find(
 
 static cl::opt<std::string> Name("name", cl::desc("Name to find."),
                                  cl::sub(SymbolsSubcommand));
+static cl::opt<std::string> MangledName(
+    "mangled-name",
+    cl::desc("Mangled name to find. Only compatible when searching types"),
+    cl::sub(SymbolsSubcommand));
 static cl::opt<bool>
     Regex("regex",
           cl::desc("Search using regular expressions (available for variables "
@@ -463,6 +469,9 @@ static lldb::DescriptionLevel GetDescriptionLevel() {
 }
 
 Error opts::symbols::findFunctions(lldb_private::Module &Module) {
+  if (!MangledName.empty())
+    return make_string_error("Cannot search functions by mangled name.");
+
   SymbolFile &Symfile = *Module.GetSymbolFile();
   SymbolContextList List;
   auto compiler_context = parseCompilerContext();
@@ -524,6 +533,8 @@ Error opts::symbols::findBlocks(lldb_private::Module &Module) {
   assert(!Regex);
   assert(!File.empty());
   assert(Line != 0);
+  if (!MangledName.empty())
+    return make_string_error("Cannot search blocks by mangled name.");
 
   SymbolContextList List;
 
@@ -558,6 +569,9 @@ Error opts::symbols::findBlocks(lldb_private::Module &Module) {
 }
 
 Error opts::symbols::findNamespaces(lldb_private::Module &Module) {
+  if (!MangledName.empty())
+    return make_string_error("Cannot search namespaces by mangled name.");
+
   SymbolFile &Symfile = *Module.GetSymbolFile();
   Expected<CompilerDeclContext> ContextOr = getDeclContext(Symfile);
   if (!ContextOr)
@@ -580,8 +594,12 @@ Error opts::symbols::findTypes(lldb_private::Module &Module) {
   Expected<CompilerDeclContext> ContextOr = getDeclContext(Symfile);
   if (!ContextOr)
     return ContextOr.takeError();
+  ;
 
   TypeResults results;
+  if (!Name.empty() && !MangledName.empty())
+    return make_string_error("Cannot search by both name and mangled name.");
+
   if (!Name.empty()) {
     if (ContextOr->IsValid()) {
       TypeQuery query(*ContextOr, ConstString(Name),
@@ -595,6 +613,20 @@ Error opts::symbols::findTypes(lldb_private::Module &Module) {
         query.AddLanguage(Language::GetLanguageTypeFromString(Language));
       Symfile.FindTypes(query, results);
     }
+  } else if (!MangledName.empty()) {
+    auto Opts = TypeQueryOptions::e_search_by_mangled_name;
+    if (ContextOr->IsValid()) {
+      TypeQuery query(*ContextOr, ConstString(MangledName), Opts);
+      if (!Language.empty())
+        query.AddLanguage(Language::GetLanguageTypeFromString(Language));
+      Symfile.FindTypes(query, results);
+    } else {
+      TypeQuery query(MangledName, Opts);
+      if (!Language.empty())
+        query.AddLanguage(Language::GetLanguageTypeFromString(Language));
+      Symfile.FindTypes(query, results);
+    }
+
   } else {
     TypeQuery query(parseCompilerContext(), TypeQueryOptions::e_module_search);
     if (!Language.empty())
@@ -612,6 +644,9 @@ Error opts::symbols::findTypes(lldb_private::Module &Module) {
 }
 
 Error opts::symbols::findVariables(lldb_private::Module &Module) {
+  if (!MangledName.empty())
+    return make_string_error("Cannot search variables by mangled name.");
+
   SymbolFile &Symfile = *Module.GetSymbolFile();
   VariableList List;
   if (Regex) {

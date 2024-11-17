@@ -82,7 +82,10 @@ FLAGS_ENUM(TypeQueryOptions){
     /// When true, the find types call should stop the query as soon as a single
     /// matching type is found. When false, the type query should find all
     /// matching types.
-    e_find_one = (1u << 2),
+    e_find_one = (1u << 4),
+    // If set, treat TypeQuery::m_name as a mangled name that should be
+    // searched.
+    e_search_by_mangled_name = (1u << 5),
 };
 LLDB_MARK_AS_BITMASK_ENUM(TypeQueryOptions)
 
@@ -278,6 +281,19 @@ public:
       m_options |= e_find_one;
     else
       m_options &= (e_exact_match | e_find_one);
+  }
+
+  /// Returns true if the type query is supposed to treat the name to be
+  /// searched as a mangled name.
+  bool GetSearchByMangledName() const {
+    return (m_options & e_search_by_mangled_name) != 0;
+  }
+
+  void SetSearchByMangledName(bool b) {
+    if (b)
+      m_options |= e_search_by_mangled_name;
+    else
+      m_options &= ~e_search_by_mangled_name;
   }
 
   /// Access the internal compiler context array.
@@ -539,6 +555,8 @@ public:
   /// Return the language-specific payload.
   void SetPayload(Payload opaque_payload) { m_payload = opaque_payload; }
 
+  ConstString GetAlternativeModuleName() const { return m_alternative_module_name; }
+
 protected:
   ConstString m_name;
   SymbolFile *m_symbol_file = nullptr;
@@ -555,6 +573,8 @@ protected:
   /// Language-specific flags.
   Payload m_payload;
 
+  ConstString m_alternative_module_name;
+
   Type *GetEncodingType();
 
   bool ResolveCompilerType(ResolveState compiler_type_resolve_state);
@@ -569,7 +589,7 @@ private:
        std::optional<uint64_t> byte_size, SymbolContextScope *context,
        lldb::user_id_t encoding_uid, EncodingDataType encoding_uid_type,
        const Declaration &decl, const CompilerType &compiler_qual_type,
-       ResolveState compiler_type_resolve_state, uint32_t opaque_payload = 0);
+       ResolveState compiler_type_resolve_state, uint32_t opaque_payload = 0, ConstString alternative_module_name = ConstString());
 
   // This makes an invalid type.  Used for functions that return a Type when
   // they get an error.

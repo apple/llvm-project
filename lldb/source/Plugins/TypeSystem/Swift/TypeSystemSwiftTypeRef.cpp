@@ -35,6 +35,7 @@
 
 #include "swift/ClangImporter/ClangImporter.h"
 #include "swift/../../lib/ClangImporter/ClangAdapter.h"
+#include "swift/Demangling/Demangler.h"
 #include "swift/Frontend/Frontend.h"
 
 #include "clang/APINotes/APINotesManager.h"
@@ -43,6 +44,7 @@
 #include "clang/AST/DeclObjC.h"
 
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/SmallVector.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -149,6 +151,69 @@ TypeSystemSwiftTypeRef::CanonicalizeSugar(swift::Demangle::Demangler &dem,
   });
 }
 
+swift::Demangle::ManglingErrorOr<std::string>
+TypeSystemSwiftTypeRef::TransformModuleName(
+    llvm::StringRef mangled_name,
+    const llvm::StringMap<llvm::StringRef> &module_name_map) {
+  swift::Demangle::Demangler dem;
+  auto *node = dem.demangleSymbol(mangled_name);
+  auto *adjusted_node = TypeSystemSwiftTypeRef::Transform(
+      dem, node, [&](swift::Demangle::NodePointer node) {
+        if (node->getKind() == Node::Kind::Module) {
+          auto module_name = node->getText();
+          if (module_name_map.contains(module_name)) {
+            auto real_name = module_name_map.lookup(module_name);
+            auto *adjusted_module_node =
+                dem.createNodeWithAllocatedText(Node::Kind::Module, real_name);
+            return adjusted_module_node;
+          }
+        }
+
+        return node;
+      });
+
+  auto mangling = mangleNode(adjusted_node);
+  return mangling;
+}
+
+static NodePointer CloneNode(Demangler &dem, NodePointer node, bool set_children = true) {
+  NodePointer clone;
+  auto kind = node->getKind();
+  if (node->hasText())
+    clone = dem.createNodeWithAllocatedText(kind, node->getText());
+  else if (node->hasIndex())
+    clone = dem.createNode(kind, node->getIndex());
+  else
+    clone = dem.createNode(kind);
+  if (set_children)
+    for (NodePointer transformed_child : *node)
+      clone->addChild(transformed_child, dem);
+  return clone;
+}
+
+NodePointer TypeSystemSwiftTypeRef::TransformModuleName(NodePointer node, Demangler &dem,
+    std::function<NodePointer(NodePointer)>
+        module_transformer) {
+  assert(node->getKind() == Node::Kind::Type);
+  if (node->getKind() != Node::Kind::Type) {
+    LLDB_LOGF(GetLog(LLDBLog::Types),
+             "[TransformModuleName] Unexpected node kind %hu", static_cast<uint16_t>(node->getKind()));
+    return node;
+  }
+
+  std::function<NodePointer(NodePointer)> a = [&](NodePointer node) -> NodePointer {
+    if (node->hasChildren()) {
+      auto transformed = a(node->getFirstChild());
+      auto clone = CloneNode(dem, node);
+      clone->replaceChild(0, transformed);
+      return clone;
+    }
+    return module_transformer(node);
+  };
+
+  return a(node);
+}
+
 llvm::StringRef
 TypeSystemSwiftTypeRef::GetBaseName(swift::Demangle::NodePointer node) {
   if (!node)
@@ -178,6 +243,56 @@ TypeSystemSwiftTypeRef::GetBaseName(swift::Demangle::NodePointer node) {
     for (NodePointer child : *node)
       return GetBaseName(child);
     return {};
+  }
+}
+
+NodePointer TypeSystemSwiftTypeRef::TransformBoundGenericTypes(
+  swift::Demangle::Demangler &dem,
+    swift::Demangle::NodePointer node,
+    std::function<swift::Demangle::NodePointer(swift::Demangle::NodePointer)>
+        type_transformer) {
+  if (node->getKind() != Node::Kind::Type || !node->hasChildren())
+    return node;
+
+  NodePointer bound_generic_node = node->getFirstChild();
+  if (bound_generic_node->getNumChildren() != 2)
+    return node;
+
+  NodePointer type_list_node = nullptr;
+  switch (bound_generic_node->getKind()) {
+  case Node::Kind::BoundGenericClass:
+  case Node::Kind::BoundGenericEnum:
+  case Node::Kind::BoundGenericStructure:
+  case Node::Kind::BoundGenericProtocol:
+  case Node::Kind::BoundGenericOtherNominalType:
+  case Node::Kind::BoundGenericTypeAlias:
+    type_list_node = bound_generic_node->getChild(1);
+    break;
+  default:
+    return node;
+  }
+  bool node_mutated = false;
+  auto transformed = TypeSystemSwiftTypeRef::Transform(dem, type_list_node, [&](NodePointer node) {
+    for (NodePointer child : *type_list_node) {
+      if (child == node) {
+        return type_transformer(child);
+      }
+    }
+    return node;
+  });
+
+  bound_generic_node = CloneNode(dem, bound_generic_node);
+  bound_generic_node->replaceChild(1, transformed);
+  node = CloneNode(dem, node);
+  node->replaceChild(0, bound_generic_node);
+  return node;
+  for (size_t i = 0; i < type_list_node->getNumChildren(); ++i) {
+    NodePointer bound_type = type_list_node->getChild(i);
+    NodePointer transformed = type_transformer(bound_type);
+    if (transformed != bound_type) {
+      type_list_node->replaceChild(i, transformed);
+      node_mutated = true;
+    }
   }
 }
 
@@ -934,13 +1049,7 @@ swift::Demangle::NodePointer TypeSystemSwiftTypeRef::Transform(
   }
   if (changed) {
     // Create a new node with the transformed children.
-    auto kind = node->getKind();
-    if (node->hasText())
-      node = dem.createNodeWithAllocatedText(kind, node->getText());
-    else if (node->hasIndex())
-      node = dem.createNode(kind, node->getIndex());
-    else
-      node = dem.createNode(kind);
+    node = CloneNode(dem, node, /*set_children=*/false);
     for (NodePointer transformed_child : children)
       node->addChild(transformed_child, dem);
   }

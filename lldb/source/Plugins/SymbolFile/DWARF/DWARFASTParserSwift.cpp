@@ -33,6 +33,7 @@
 #include "lldb/Utility/Status.h"
 
 #include "clang/AST/DeclObjC.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -67,6 +68,7 @@ lldb::TypeSP DWARFASTParserSwift::ParseTypeFromDWARF(const SymbolContext &sc,
   Declaration decl;
   ConstString mangled_name;
   ConstString name;
+  ConstString alternative_module_name;
   ConstString preferred_name;
 
   std::optional<uint64_t> dwarf_byte_size;
@@ -108,6 +110,9 @@ lldb::TypeSP DWARFASTParserSwift::ParseTypeFromDWARF(const SymbolContext &sc,
             // change the underlying Swift type.
             return ParseTypeFromDWARF(sc, die.GetReferencedDIE(attr),
                                       type_is_new_ptr);
+          break;
+        case DW_AT_LLVM_alternative_module_name:
+alternative_module_name.SetCString(form_value.AsCString());
           break;
         default:
           break;
@@ -198,7 +203,7 @@ lldb::TypeSP DWARFASTParserSwift::ParseTypeFromDWARF(const SymbolContext &sc,
         // We don't have an exe_scope here by design, so we need to
         // read the size from DWARF.
         dwarf_byte_size, nullptr, LLDB_INVALID_UID, Type::eEncodingIsUID, &decl,
-        compiler_type, Type::ResolveState::Full);
+        compiler_type, Type::ResolveState::Full, 0, alternative_module_name);
   }
 
   // Cache this type.

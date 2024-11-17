@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "lldb/Core/Module.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/LLDBLog.h"
@@ -269,14 +270,14 @@ Type::Type(lldb::user_id_t uid, SymbolFile *symbol_file, ConstString name,
            std::optional<uint64_t> byte_size, SymbolContextScope *context,
            user_id_t encoding_uid, EncodingDataType encoding_uid_type,
            const Declaration &decl, const CompilerType &compiler_type,
-           ResolveState compiler_type_resolve_state, uint32_t opaque_payload)
+           ResolveState compiler_type_resolve_state, uint32_t opaque_payload, ConstString alternative_module_name)
     : std::enable_shared_from_this<Type>(), UserID(uid), m_name(name),
       m_symbol_file(symbol_file), m_context(context),
       m_encoding_uid(encoding_uid), m_encoding_uid_type(encoding_uid_type),
       m_decl(decl), m_compiler_type(compiler_type),
       m_compiler_type_resolve_state(compiler_type ? compiler_type_resolve_state
                                                   : ResolveState::Unresolved),
-      m_payload(opaque_payload) {
+      m_payload(opaque_payload), m_alternative_module_name(alternative_module_name) {
   if (byte_size) {
     m_byte_size = *byte_size;
     m_byte_size_has_value = true;

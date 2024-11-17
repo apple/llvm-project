@@ -494,12 +494,16 @@ namespace llvm {
     /// \param NumExtraInhabitants The number of extra inhabitants of the type.
     /// An extra inhabitant is a bit pattern that does not represent a valid
     /// value for instances of a given type.
+    /// \param AlternativeModuleName An alternative module name associated with
+    /// this type. This is used by Swift to encode the module's ABI name for
+    /// types defined with @_originallyDefinedIn.
     DICompositeType *createStructType(
         DIScope *Scope, StringRef Name, DIFile *File, unsigned LineNumber,
         uint64_t SizeInBits, uint32_t AlignInBits, DINode::DIFlags Flags,
         DIType *DerivedFrom, DINodeArray Elements, unsigned RunTimeLang = 0,
         DIType *VTableHolder = nullptr, StringRef UniqueIdentifier = "",
-        DIType *SpecificationOf = nullptr, uint32_t NumExtraInhabitants = 0);
+        DIType *SpecificationOf = nullptr, uint32_t NumExtraInhabitants = 0,
+        StringRef AlternativeModuleName = "");
 
     /// Create debugging information entry for an union.
     /// \param Scope        Scope in which this union is defined.
@@ -672,14 +676,14 @@ namespace llvm {
                                        unsigned RuntimeLang = 0,
                                        uint64_t SizeInBits = 0,
                                        uint32_t AlignInBits = 0,
-                                       StringRef UniqueIdentifier = "");
+                                       StringRef UniqueIdentifier = "", StringRef AlternativeModuleName = "");
 
     /// Create a temporary forward-declared type.
     DICompositeType *createReplaceableCompositeType(
         unsigned Tag, StringRef Name, DIScope *Scope, DIFile *F, unsigned Line,
         unsigned RuntimeLang = 0, uint64_t SizeInBits = 0,
         uint32_t AlignInBits = 0, DINode::DIFlags Flags = DINode::FlagFwdDecl,
-        StringRef UniqueIdentifier = "", DINodeArray Annotations = nullptr);
+        StringRef UniqueIdentifier = "", DINodeArray Annotations = nullptr, StringRef AlternativeModuleName = "");
 
     /// Retain DIScope* in a module even if it is not referenced
     /// through debug info anchors.
