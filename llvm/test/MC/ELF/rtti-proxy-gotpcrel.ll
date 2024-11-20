@@ -3,6 +3,10 @@
 ; RUN: llc %s -mtriple=aarch64 -o - | FileCheck %s
 ; RUN: llc %s -mtriple=riscv64 -o - | FileCheck %s
 
+; XFAIL: *
+; See swiftlang/llvm PR 9339 / rdar//135050296
+; AArch64 support was disabled because of linker issues in 0614ff994a.
+
 @vtable = dso_local unnamed_addr constant i32 trunc (i64 sub (i64 ptrtoint (ptr @rtti.proxy to i64), i64 ptrtoint (ptr @vtable to i64)) to i32), align 4
 @vtable_with_offset = dso_local unnamed_addr constant [2 x i32] [i32 0, i32 trunc (i64 sub (i64 ptrtoint (ptr @rtti.proxy to i64), i64 ptrtoint (ptr @vtable_with_offset to i64)) to i32)], align 4
 @vtable_with_negative_offset = dso_local unnamed_addr constant [2 x i32] [
