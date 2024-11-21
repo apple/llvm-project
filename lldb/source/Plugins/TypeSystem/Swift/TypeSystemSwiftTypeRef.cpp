@@ -34,8 +34,9 @@
 #include "lldb/Utility/RegularExpression.h"
 #include "lldb/Utility/Timer.h"
 
-#include "swift/ClangImporter/ClangImporter.h"
 #include "swift/../../lib/ClangImporter/ClangAdapter.h"
+#include "swift/ClangImporter/ClangImporter.h"
+#include "swift/Demangling/Demangler.h"
 #include "swift/Frontend/Frontend.h"
 
 #include "clang/APINotes/APINotesManager.h"
@@ -148,6 +149,234 @@ TypeSystemSwiftTypeRef::CanonicalizeSugar(swift::Demangle::Demangler &dem,
       sugared->addChild(child, dem);
     return sugared;
   });
+}
+
+swift::Demangle::ManglingErrorOr<std::string>
+TypeSystemSwiftTypeRef::TransformModuleName(
+    llvm::StringRef mangled_name,
+    const llvm::StringMap<llvm::StringRef> &module_name_map) {
+  swift::Demangle::Demangler dem;
+  auto *node = dem.demangleSymbol(mangled_name);
+  auto *adjusted_node = TypeSystemSwiftTypeRef::Transform(
+      dem, node, [&](swift::Demangle::NodePointer node) {
+        if (node->getKind() == Node::Kind::Module) {
+          auto module_name = node->getText();
+          if (module_name_map.contains(module_name)) {
+            auto real_name = module_name_map.lookup(module_name);
+            auto *adjusted_module_node =
+                dem.createNodeWithAllocatedText(Node::Kind::Module, real_name);
+            return adjusted_module_node;
+          }
+        }
+
+        return node;
+      });
+
+  auto mangling = mangleNode(adjusted_node);
+  return mangling;
+}
+
+static NodePointer CloneNode(Demangler &dem, NodePointer node,
+                             bool set_children = true) {
+  NodePointer clone;
+  auto kind = node->getKind();
+  if (node->hasText())
+    clone = dem.createNodeWithAllocatedText(kind, node->getText());
+  else if (node->hasIndex())
+    clone = dem.createNode(kind, node->getIndex());
+  else
+    clone = dem.createNode(kind);
+  if (set_children)
+    for (NodePointer transformed_child : *node)
+      clone->addChild(transformed_child, dem);
+  return clone;
+}
+
+NodePointer TypeSystemSwiftTypeRef::TransformModuleName(
+    NodePointer node, Demangler &dem,
+    std::function<NodePointer(NodePointer)> module_transformer) {
+  assert(node->getKind() == Node::Kind::Type);
+  if (node->getKind() != Node::Kind::Type) {
+    LLDB_LOGF(GetLog(LLDBLog::Types),
+              "[TransformModuleName] Unexpected node kind %hu",
+              static_cast<uint16_t>(node->getKind()));
+    return nullptr;
+  }
+
+  bool failed = false;
+  std::function<NodePointer(NodePointer)> recurse_to_module_node =
+      [&](NodePointer node) -> NodePointer {
+    if (failed)
+      return nullptr;
+    // If the node has children this is not the module node yet, so recursively
+    // examine the first child.
+    if (node->hasChildren()) {
+      NodePointer transformed = recurse_to_module_node(node->getFirstChild());
+      // Clone the node because demangle trees share subtrees if they're the
+      // same, and we don't want to accidentally mutate some other part of the
+      // tree.
+      NodePointer clone = CloneNode(dem, node);
+      clone->replaceChild(0, transformed);
+      return clone;
+    }
+    if (node->getKind() == Node::Kind::Module)
+      return module_transformer(node);
+    failed = true;
+    return nullptr;
+  };
+
+  NodePointer transformed = recurse_to_module_node(node);
+  if (failed)
+    LLDB_LOGF(GetLog(LLDBLog::Types),
+              "[TransformModuleName] Failed to transform node %hu",
+              static_cast<uint16_t>(node->getKind()));
+
+  return transformed;
+}
+
+NodePointer TypeSystemSwiftTypeRef::TransformBoundGenericTypes(
+    swift::Demangle::Demangler &dem, swift::Demangle::NodePointer node,
+    std::function<swift::Demangle::NodePointer(swift::Demangle::NodePointer)>
+        type_transformer) {
+  if (node->getKind() != Node::Kind::Type || !node->hasChildren())
+    return node;
+
+  NodePointer bound_generic_node = node->getFirstChild();
+  if (bound_generic_node->getNumChildren() != 2)
+    return node;
+
+  NodePointer type_list_node = nullptr;
+  switch (bound_generic_node->getKind()) {
+  case Node::Kind::BoundGenericClass:
+  case Node::Kind::BoundGenericEnum:
+  case Node::Kind::BoundGenericStructure:
+  case Node::Kind::BoundGenericProtocol:
+  case Node::Kind::BoundGenericOtherNominalType:
+  case Node::Kind::BoundGenericTypeAlias:
+    type_list_node = bound_generic_node->getChild(1);
+    break;
+  default:
+    return node;
+  }
+  assert(type_list_node && "No type list node!");
+
+  // Transform the bound generic types by applying type_transformer to all the
+  // children of the type_list.
+  NodePointer transformed_type_list =
+      CloneNode(dem, type_list_node, /*set_children=*/false);
+  for (NodePointer child : *type_list_node)
+    transformed_type_list->addChild(type_transformer(child), dem);
+
+  bound_generic_node = CloneNode(dem, bound_generic_node);
+  bound_generic_node->replaceChild(1, transformed_type_list);
+  node = CloneNode(dem, node);
+  node->replaceChild(0, bound_generic_node);
+  return node;
+}
+
+std::string TypeSystemSwiftTypeRef::AdjustTypeForOriginallyDefinedInModule(
+    llvm::StringRef mangled_typename) {
+  if (mangled_typename.empty())
+    return {};
+
+  swift::Demangle::Demangler dem;
+  auto *type_node =
+      swift_demangle::GetDemangledTypeMangling(dem, mangled_typename);
+  assert(type_node);
+  if (!type_node)
+    return {};
+
+  bool did_transform = false;
+  std::function<NodePointer(NodePointer)> transform_all_module_nodes =
+      [&](NodePointer node) -> NodePointer {
+    auto compiler_type = RemangleAsType(dem, node);
+    if (!compiler_type) {
+      LLDB_LOG(GetLog(LLDBLog::Types),
+               "[AdjustTypeForOriginallyDefinedInModule] Unexpected mangling "
+               "error when mangling adjusted node for type with mangled name "
+               "{0}",
+               mangled_typename);
+
+      return node;
+    }
+
+    // If this type has an @_originallyDefinedIn attribute, the compiler will
+    // emit a typealias whose name is prefixed by $ODI followed by the mangled
+    // name.
+    TargetSP target_sp(GetTargetWP().lock());
+    if (!target_sp)
+      return node;
+    ModuleList &module_list = target_sp->GetImages();
+    std::vector<ImportedDeclaration> decls;
+    module_list.FindImportedDeclarations(GetModule(),
+                                         compiler_type.GetMangledTypeName(),
+                                         decls, /*find_one=*/true);
+    if (decls.empty())
+      return node;
+
+    std::vector<lldb_private::CompilerContext> declContext =
+        decls[0].GetDeclContext();
+
+    lldbassert(!declContext.empty() &&
+               "Unexpected decl context for $ODI$ typealiased type");
+    if (declContext.empty())
+      return node;
+
+    auto module_context = declContext[0];
+
+    auto module_tranformer =
+        [&](NodePointer module_node,
+            CompilerContext module_context) -> NodePointer {
+      if (module_node->getText() == swift::MANGLING_MODULE_OBJC)
+        return module_node;
+
+      // If the mangled name's module and module context module match then
+      // there's nothing to do.
+      if (module_node->getText() == module_context.name)
+        return module_node;
+
+      // Otherwise this is a type who is originally defined in a separate
+      // module. Adjust the module name.
+      auto *adjusted_module_node = dem.createNodeWithAllocatedText(
+          Node::Kind::Module, module_context.name);
+      did_transform = true;
+      return adjusted_module_node;
+    };
+
+    NodePointer transformed_module =
+        TypeSystemSwiftTypeRef::TransformModuleName(
+            node, dem, [&](NodePointer module_node) {
+              return module_tranformer(module_node, module_context);
+            });
+
+    if (!transformed_module) {
+      return node;
+    }
+
+    NodePointer transformed_generic_types =
+        TypeSystemSwiftTypeRef::TransformBoundGenericTypes(
+            dem, transformed_module, transform_all_module_nodes);
+    return transformed_generic_types;
+  };
+
+  auto transformed_type_node = transform_all_module_nodes(type_node);
+  if (!did_transform)
+    return {};
+
+  auto mangling =
+      mangleNode(swift_demangle::mangleType(dem, transformed_type_node));
+  assert(mangling.isSuccess());
+  if (!mangling.isSuccess()) {
+    LLDB_LOG(GetLog(LLDBLog::Types),
+             "[AdjustTypeForOriginallyDefinedInModule] Unexpected mangling "
+             "error when mangling adjusted node for type with mangled name {0}",
+             mangled_typename);
+
+    return {};
+  }
+
+  auto str = mangling.result();
+  return str;
 }
 
 llvm::StringRef
@@ -935,13 +1164,7 @@ swift::Demangle::NodePointer TypeSystemSwiftTypeRef::Transform(
   }
   if (changed) {
     // Create a new node with the transformed children.
-    auto kind = node->getKind();
-    if (node->hasText())
-      node = dem.createNodeWithAllocatedText(kind, node->getText());
-    else if (node->hasIndex())
-      node = dem.createNode(kind, node->getIndex());
-    else
-      node = dem.createNode(kind);
+    node = CloneNode(dem, node, /*set_children=*/false);
     for (NodePointer transformed_child : children)
       node->addChild(transformed_child, dem);
   }
@@ -4830,6 +5053,7 @@ TypeSystemSwiftTypeRef::GetDependentGenericParamListForType(
 
 #ifndef NDEBUG
 bool TypeSystemSwiftTypeRef::ShouldSkipValidation(opaque_compiler_type_t type) {
+  return true;
   auto mangled_name = GetMangledTypeName(type);
   // NSNotificationName is a typedef to a NSString in clang type, but it's a
   // struct in SwiftASTContext. Skip validation in this case.

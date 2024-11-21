@@ -366,6 +366,34 @@ public:
   CanonicalizeSugar(swift::Demangle::Demangler &dem,
                     swift::Demangle::NodePointer node);
 
+  /// Transforms the module name in the mangled type name using module_name_map
+  /// as the mapping source.
+  static swift::Demangle::ManglingErrorOr<std::string>
+  TransformModuleName(llvm::StringRef mangled_name,
+                      const llvm::StringMap<llvm::StringRef> &module_name_map);
+
+  /// Given a node pointer to a type, transforms the module name of the type's
+  /// demangle tree by applying \module_transformer to the module node.
+  static swift::Demangle::NodePointer TransformModuleName(
+      swift::Demangle::NodePointer node, swift::Demangle::Demangler &dem,
+      std::function<swift::Demangle::NodePointer(swift::Demangle::NodePointer)>
+          module_transformer);
+
+  /// Transforms the bound generic types of \node by applying \type_transformer
+  /// to them.
+  static swift::Demangle::NodePointer TransformBoundGenericTypes(
+      swift::Demangle::Demangler &dem, swift::Demangle::NodePointer node,
+      std::function<swift::Demangle::NodePointer(swift::Demangle::NodePointer)>
+          type_transformer);
+
+  /// Types with the @_originallyDefinedIn attribute are serialized with with
+  /// the original module name in reflection metadata. At the same time the type
+  /// is serialized with the swiftmodule name in debug info, but with a parent
+  /// module with the original module name. This function adjusts \type to look
+  /// up the type in reflection metadata if necessary.
+  std::string
+  AdjustTypeForOriginallyDefinedInModule(llvm::StringRef mangled_typename);
+
   /// Return the canonicalized Demangle tree for a Swift mangled type name.
   swift::Demangle::NodePointer
   GetCanonicalDemangleTree(swift::Demangle::Demangler &dem,
