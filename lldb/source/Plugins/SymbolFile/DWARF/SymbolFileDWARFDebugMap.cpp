@@ -1122,6 +1122,17 @@ void SymbolFileDWARFDebugMap::FindFunctions(const RegularExpression &regex,
   });
 }
 
+void SymbolFileDWARFDebugMap::FindImportedDeclaration(
+    ConstString name, std::vector<ImportedDeclaration> &declarations,
+    bool find_one) {
+  ForEachSymbolFile([&](SymbolFileDWARF *oso_dwarf) {
+    oso_dwarf->FindImportedDeclaration(name, declarations, find_one);
+    if (find_one && !declarations.empty())
+      return IterationAction::Stop;
+    return IterationAction::Continue;
+  });
+}
+
 void SymbolFileDWARFDebugMap::GetTypes(SymbolContextScope *sc_scope,
                                        lldb::TypeClass type_mask,
                                        TypeList &type_list) {
