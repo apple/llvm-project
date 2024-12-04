@@ -198,6 +198,10 @@ TypeSystem::DeclGetCompilerContext(void *opaque_decl) {
   return {};
 }
 
+std::optional<llvm::json::Value> TypeSystem::ReportStatistics() {
+  return std::nullopt;
+}
+
 std::vector<lldb_private::CompilerContext>
 TypeSystem::DeclContextGetCompilerContext(void *opaque_decl_ctx) {
   return {};

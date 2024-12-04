@@ -2033,6 +2033,13 @@ Status TypeSystemSwiftTypeRef::IsCompatible() {
   return {};
 }
 
+std::optional<llvm::json::Value> TypeSystemSwiftTypeRef::ReportStatistics() {
+  if (auto *swift_ast_context = GetSwiftASTContextOrNull()) {
+    return swift_ast_context->ReportStatistics();
+  }
+  return llvm::None;
+}
+
 void TypeSystemSwiftTypeRef::DiagnoseWarnings(Process &process,
                                               const SymbolContext &sc) const {
   // This gets called only from Thread::FrameSelectedCallback(StackFrame).
