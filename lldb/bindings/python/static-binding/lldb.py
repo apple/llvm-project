@@ -463,6 +463,8 @@ eStopReasonVFork = _lldb.eStopReasonVFork
 
 eStopReasonVForkDone = _lldb.eStopReasonVForkDone
 
+eStopReasonInterrupt = _lldb.eStopReasonInterrupt
+
 eReturnStatusInvalid = _lldb.eReturnStatusInvalid
 
 eReturnStatusSuccessFinishNoResult = _lldb.eReturnStatusSuccessFinishNoResult
@@ -1016,6 +1018,10 @@ eArgTypeRemotePath = _lldb.eArgTypeRemotePath
 eArgTypeRemoteFilename = _lldb.eArgTypeRemoteFilename
 
 eArgTypeModule = _lldb.eArgTypeModule
+
+eArgTypeCPUName = _lldb.eArgTypeCPUName
+
+eArgTypeCPUFeatures = _lldb.eArgTypeCPUFeatures
 
 eArgTypeLastArg = _lldb.eArgTypeLastArg
 
@@ -1573,6 +1579,8 @@ eMatchTypeRegex = _lldb.eMatchTypeRegex
 
 eMatchTypeStartsWith = _lldb.eMatchTypeStartsWith
 
+eMatchTypeRegexInsensitive = _lldb.eMatchTypeRegexInsensitive
+
 eTypeHasChildren = _lldb.eTypeHasChildren
 
 eTypeHasValue = _lldb.eTypeHasValue
@@ -1672,6 +1680,8 @@ eSaveCoreFull = _lldb.eSaveCoreFull
 eSaveCoreDirtyOnly = _lldb.eSaveCoreDirtyOnly
 
 eSaveCoreStackOnly = _lldb.eSaveCoreStackOnly
+
+eSaveCoreCustomOnly = _lldb.eSaveCoreCustomOnly
 
 eTraceEventDisabledSW = _lldb.eTraceEventDisabledSW
 
@@ -2511,7 +2521,7 @@ class SBBreakpoint(object):
             #lldbutil.print_stacktraces(process)
             from lldbutil import get_stopped_thread
             thread = get_stopped_thread(process, lldb.eStopReasonBreakpoint)
-            self.assertTrue(thread != None, 'There should be a thread stopped due to breakpoint')
+            self.assertTrue(thread is not None, 'There should be a thread stopped due to breakpoint')
             frame0 = thread.GetFrameAtIndex(0)
             frame1 = thread.GetFrameAtIndex(1)
             frame2 = thread.GetFrameAtIndex(2)
@@ -3555,6 +3565,10 @@ class SBCommandInterpreter(object):
         r"""InterruptCommand(SBCommandInterpreter self) -> bool"""
         return _lldb.SBCommandInterpreter_InterruptCommand(self)
 
+    def SetCommandOverrideCallback(self, command_name, callback):
+        r"""SetCommandOverrideCallback(SBCommandInterpreter self, char const * command_name, lldb::CommandOverrideCallback callback) -> bool"""
+        return _lldb.SBCommandInterpreter_SetCommandOverrideCallback(self, command_name, callback)
+
     def IsActive(self):
         r"""IsActive(SBCommandInterpreter self) -> bool"""
         return _lldb.SBCommandInterpreter_IsActive(self)
@@ -3610,7 +3624,10 @@ class SBCommandInterpreterRunOptions(object):
     * PrintResults:   true
     * PrintErrors:    true
     * AddToHistory:   true
+    * AllowRepeats    false
 
+    Interactive debug sessions always allow repeats, the AllowRepeats
+    run option only affects non-interactive sessions.
 
     """
 
@@ -3705,6 +3722,14 @@ class SBCommandInterpreterRunOptions(object):
         r"""SetSpawnThread(SBCommandInterpreterRunOptions self, bool arg2)"""
         return _lldb.SBCommandInterpreterRunOptions_SetSpawnThread(self, arg2)
 
+    def GetAllowRepeats(self):
+        r"""GetAllowRepeats(SBCommandInterpreterRunOptions self) -> bool"""
+        return _lldb.SBCommandInterpreterRunOptions_GetAllowRepeats(self)
+
+    def SetAllowRepeats(self, arg2):
+        r"""SetAllowRepeats(SBCommandInterpreterRunOptions self, bool arg2)"""
+        return _lldb.SBCommandInterpreterRunOptions_SetAllowRepeats(self, arg2)
+
 # Register SBCommandInterpreterRunOptions in _lldb:
 _lldb.SBCommandInterpreterRunOptions_swigregister(SBCommandInterpreterRunOptions)
 class SBCommandReturnObject(object):
@@ -3735,6 +3760,10 @@ class SBCommandReturnObject(object):
     def IsValid(self):
         r"""IsValid(SBCommandReturnObject self) -> bool"""
         return _lldb.SBCommandReturnObject_IsValid(self)
+
+    def GetErrorData(self):
+        r"""GetErrorData(SBCommandReturnObject self) -> SBStructuredData"""
+        return _lldb.SBCommandReturnObject_GetErrorData(self)
 
     def PutOutput(self, *args):
         r"""
@@ -4119,6 +4148,66 @@ class SBCompileUnit(object):
 
 # Register SBCompileUnit in _lldb:
 _lldb.SBCompileUnit_swigregister(SBCompileUnit)
+class SBSaveCoreOptions(object):
+    r"""Proxy of C++ lldb::SBSaveCoreOptions class."""
+
+    thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
+    __repr__ = _swig_repr
+
+    def __init__(self, *args):
+        r"""
+        __init__(SBSaveCoreOptions self) -> SBSaveCoreOptions
+        __init__(SBSaveCoreOptions self, SBSaveCoreOptions rhs) -> SBSaveCoreOptions
+        """
+        _lldb.SBSaveCoreOptions_swiginit(self, _lldb.new_SBSaveCoreOptions(*args))
+    __swig_destroy__ = _lldb.delete_SBSaveCoreOptions
+
+    def SetPluginName(self, plugin):
+        r"""SetPluginName(SBSaveCoreOptions self, char const * plugin) -> SBError"""
+        return _lldb.SBSaveCoreOptions_SetPluginName(self, plugin)
+
+    def GetPluginName(self):
+        r"""GetPluginName(SBSaveCoreOptions self) -> char const *"""
+        return _lldb.SBSaveCoreOptions_GetPluginName(self)
+
+    def SetStyle(self, style):
+        r"""SetStyle(SBSaveCoreOptions self, lldb::SaveCoreStyle style)"""
+        return _lldb.SBSaveCoreOptions_SetStyle(self, style)
+
+    def GetStyle(self):
+        r"""GetStyle(SBSaveCoreOptions self) -> lldb::SaveCoreStyle"""
+        return _lldb.SBSaveCoreOptions_GetStyle(self)
+
+    def SetOutputFile(self, output_file):
+        r"""SetOutputFile(SBSaveCoreOptions self, SBFileSpec output_file)"""
+        return _lldb.SBSaveCoreOptions_SetOutputFile(self, output_file)
+
+    def GetOutputFile(self):
+        r"""GetOutputFile(SBSaveCoreOptions self) -> SBFileSpec"""
+        return _lldb.SBSaveCoreOptions_GetOutputFile(self)
+
+    def SetProcess(self, process):
+        r"""SetProcess(SBSaveCoreOptions self, SBProcess process) -> SBError"""
+        return _lldb.SBSaveCoreOptions_SetProcess(self, process)
+
+    def AddThread(self, thread):
+        r"""AddThread(SBSaveCoreOptions self, SBThread thread) -> SBError"""
+        return _lldb.SBSaveCoreOptions_AddThread(self, thread)
+
+    def RemoveThread(self, thread):
+        r"""RemoveThread(SBSaveCoreOptions self, SBThread thread) -> bool"""
+        return _lldb.SBSaveCoreOptions_RemoveThread(self, thread)
+
+    def AddMemoryRegionToSave(self, region):
+        r"""AddMemoryRegionToSave(SBSaveCoreOptions self, SBMemoryRegionInfo region) -> SBError"""
+        return _lldb.SBSaveCoreOptions_AddMemoryRegionToSave(self, region)
+
+    def Clear(self):
+        r"""Clear(SBSaveCoreOptions self)"""
+        return _lldb.SBSaveCoreOptions_Clear(self)
+
+# Register SBSaveCoreOptions in _lldb:
+_lldb.SBSaveCoreOptions_swigregister(SBSaveCoreOptions)
 class SBData(object):
     r"""Represents a data buffer."""
 
@@ -4333,19 +4422,19 @@ class SBData(object):
             lldbtarget = lldbdict['target']
         else:
             lldbtarget = None
-        if target == None and lldbtarget != None and lldbtarget.IsValid():
+        if target is None and lldbtarget is not None and lldbtarget.IsValid():
             target = lldbtarget
-        if ptr_size == None:
+        if ptr_size is None:
             if target and target.IsValid():
                 ptr_size = target.addr_size
             else:
                 ptr_size = 8
-        if endian == None:
+        if endian is None:
             if target and target.IsValid():
                 endian = target.byte_order
             else:
                 endian = lldbdict['eByteOrderLittle']
-        if size == None:
+        if size is None:
             if value > 2147483647:
                 size = 8
             elif value < -2147483648:
@@ -4584,6 +4673,11 @@ class SBDebugger(object):
     def GetBroadcasterClass():
         r"""GetBroadcasterClass() -> char const *"""
         return _lldb.SBDebugger_GetBroadcasterClass()
+
+    @staticmethod
+    def SupportsLanguage(language):
+        r"""SupportsLanguage(lldb::LanguageType language) -> bool"""
+        return _lldb.SBDebugger_SupportsLanguage(language)
 
     def GetBroadcaster(self):
         r"""GetBroadcaster(SBDebugger self) -> SBBroadcaster"""
@@ -4884,6 +4978,10 @@ class SBDebugger(object):
         r"""GetUseColor(SBDebugger self) -> bool"""
         return _lldb.SBDebugger_GetUseColor(self)
 
+    def SetShowInlineDiagnostics(self, arg2):
+        r"""SetShowInlineDiagnostics(SBDebugger self, bool arg2) -> bool"""
+        return _lldb.SBDebugger_SetShowInlineDiagnostics(self, arg2)
+
     def SetUseSourceCache(self, use_source_cache):
         r"""SetUseSourceCache(SBDebugger self, bool use_source_cache) -> bool"""
         return _lldb.SBDebugger_SetUseSourceCache(self, use_source_cache)
@@ -5081,6 +5179,10 @@ class SBDebugger(object):
         r"""GetSyntheticForType(SBDebugger self, SBTypeNameSpecifier arg2) -> SBTypeSynthetic"""
         return _lldb.SBDebugger_GetSyntheticForType(self, arg2)
 
+    def ResetStatistics(self):
+        r"""ResetStatistics(SBDebugger self)"""
+        return _lldb.SBDebugger_ResetStatistics(self)
+
     def RunCommandInterpreter(self, auto_handle_events, spawn_thread, options, num_errors, quit_requested, stopped_for_crash):
         r"""
         RunCommandInterpreter(SBDebugger self, bool auto_handle_events, bool spawn_thread, SBCommandInterpreterRunOptions options, int & num_errors, bool & quit_requested, bool & stopped_for_crash)
@@ -5266,8 +5368,10 @@ class SBError(object):
 
             # Spawn a new process and don't display the stdout if not in TraceOn() mode.
             import subprocess
-            popen = subprocess.Popen([self.exe, 'abc', 'xyz'],
-                                     stdout = open(os.devnull, 'w') if not self.TraceOn() else None)
+            popen = subprocess.Popen(
+                [self.exe, 'abc', 'xyz'],
+                stdout=subprocess.DEVNULL if not self.TraceOn() else None,
+            )
 
             listener = lldb.SBListener('my.attach.listener')
             error = lldb.SBError()
@@ -6343,10 +6447,6 @@ class SBFrame(object):
         r"""IsSwiftThunk(SBFrame self) -> bool"""
         return _lldb.SBFrame_IsSwiftThunk(self)
 
-    def GetLanguageSpecificData(self):
-        r"""GetLanguageSpecificData(SBFrame self) -> SBStructuredData"""
-        return _lldb.SBFrame_GetLanguageSpecificData(self)
-
     def IsInlined(self, *args):
         r"""
         IsInlined(SBFrame self) -> bool
@@ -6369,6 +6469,10 @@ class SBFrame(object):
         """
         return _lldb.SBFrame_IsArtificial(self, *args)
 
+    def IsHidden(self):
+        r"""IsHidden(SBFrame self) -> bool"""
+        return _lldb.SBFrame_IsHidden(self)
+
     def EvaluateExpression(self, *args):
         r"""
         EvaluateExpression(SBFrame self, char const * expr) -> SBValue
@@ -6380,6 +6484,10 @@ class SBFrame(object):
             target's default.
         """
         return _lldb.SBFrame_EvaluateExpression(self, *args)
+
+    def GetLanguageSpecificData(self):
+        r"""GetLanguageSpecificData(SBFrame self) -> SBStructuredData"""
+        return _lldb.SBFrame_GetLanguageSpecificData(self)
 
     def GetFrameBlock(self):
         r"""
@@ -7146,6 +7254,8 @@ eLanguageNameMove = _lldb.eLanguageNameMove
 
 eLanguageNameHylo = _lldb.eLanguageNameHylo
 
+eLanguageNameMetal = _lldb.eLanguageNameMetal
+
 class SBLanguageRuntime(object):
     r"""Utility functions for :ref:`LanguageType`"""
 
@@ -7161,6 +7271,41 @@ class SBLanguageRuntime(object):
     def GetNameForLanguageType(language):
         r"""GetNameForLanguageType(lldb::LanguageType language) -> char const *"""
         return _lldb.SBLanguageRuntime_GetNameForLanguageType(language)
+
+    @staticmethod
+    def LanguageIsCPlusPlus(language):
+        r"""LanguageIsCPlusPlus(lldb::LanguageType language) -> bool"""
+        return _lldb.SBLanguageRuntime_LanguageIsCPlusPlus(language)
+
+    @staticmethod
+    def LanguageIsObjC(language):
+        r"""LanguageIsObjC(lldb::LanguageType language) -> bool"""
+        return _lldb.SBLanguageRuntime_LanguageIsObjC(language)
+
+    @staticmethod
+    def LanguageIsCFamily(language):
+        r"""LanguageIsCFamily(lldb::LanguageType language) -> bool"""
+        return _lldb.SBLanguageRuntime_LanguageIsCFamily(language)
+
+    @staticmethod
+    def SupportsExceptionBreakpointsOnThrow(language):
+        r"""SupportsExceptionBreakpointsOnThrow(lldb::LanguageType language) -> bool"""
+        return _lldb.SBLanguageRuntime_SupportsExceptionBreakpointsOnThrow(language)
+
+    @staticmethod
+    def SupportsExceptionBreakpointsOnCatch(language):
+        r"""SupportsExceptionBreakpointsOnCatch(lldb::LanguageType language) -> bool"""
+        return _lldb.SBLanguageRuntime_SupportsExceptionBreakpointsOnCatch(language)
+
+    @staticmethod
+    def GetThrowKeywordForLanguage(language):
+        r"""GetThrowKeywordForLanguage(lldb::LanguageType language) -> char const *"""
+        return _lldb.SBLanguageRuntime_GetThrowKeywordForLanguage(language)
+
+    @staticmethod
+    def GetCatchKeywordForLanguage(language):
+        r"""GetCatchKeywordForLanguage(lldb::LanguageType language) -> char const *"""
+        return _lldb.SBLanguageRuntime_GetCatchKeywordForLanguage(language)
 
     def __init__(self):
         r"""__init__(SBLanguageRuntime self) -> SBLanguageRuntime"""
@@ -7760,7 +7905,12 @@ class SBMemoryRegionInfoList(object):
 
     def __iter__(self):
       '''Iterate over all the memory regions in a lldb.SBMemoryRegionInfoList object.'''
-      return lldb_iter(self, 'GetSize', 'GetMemoryRegionAtIndex')
+      import lldb
+      size = self.GetSize()
+      region = lldb.SBMemoryRegionInfo()
+      for i in range(size):
+        self.GetMemoryRegionAtIndex(i, region)
+        yield region
 
 
 # Register SBMemoryRegionInfoList in _lldb:
@@ -9257,6 +9407,14 @@ class SBProcess(object):
         """
         return _lldb.SBProcess_ReadPointerFromMemory(self, addr, error)
 
+    def FindRangesInMemory(self, buf, ranges, alignment, max_matches, error):
+        r"""FindRangesInMemory(SBProcess self, void const * buf, SBAddressRangeList ranges, uint32_t alignment, uint32_t max_matches, SBError error) -> SBAddressRangeList"""
+        return _lldb.SBProcess_FindRangesInMemory(self, buf, ranges, alignment, max_matches, error)
+
+    def FindInMemory(self, buf, range, alignment, error):
+        r"""FindInMemory(SBProcess self, void const * buf, SBAddressRange range, uint32_t alignment, SBError error) -> lldb::addr_t"""
+        return _lldb.SBProcess_FindInMemory(self, buf, range, alignment, error)
+
     @staticmethod
     def GetStateFromEvent(event):
         r"""GetStateFromEvent(SBEvent event) -> lldb::StateType"""
@@ -9391,6 +9549,7 @@ class SBProcess(object):
         r"""
         SaveCore(SBProcess self, char const * file_name, char const * flavor, lldb::SaveCoreStyle core_style) -> SBError
         SaveCore(SBProcess self, char const * file_name) -> SBError
+        SaveCore(SBProcess self, SBSaveCoreOptions options) -> SBError
         """
         return _lldb.SBProcess_SaveCore(self, *args)
 
@@ -10207,6 +10366,30 @@ class SBStatisticsOptions(object):
         Gets whether the statistics only dump a summary.
         """
         return _lldb.SBStatisticsOptions_GetSummaryOnly(self)
+
+    def SetIncludeTargets(self, b):
+        r"""SetIncludeTargets(SBStatisticsOptions self, bool b)"""
+        return _lldb.SBStatisticsOptions_SetIncludeTargets(self, b)
+
+    def GetIncludeTargets(self):
+        r"""GetIncludeTargets(SBStatisticsOptions self) -> bool"""
+        return _lldb.SBStatisticsOptions_GetIncludeTargets(self)
+
+    def SetIncludeModules(self, b):
+        r"""SetIncludeModules(SBStatisticsOptions self, bool b)"""
+        return _lldb.SBStatisticsOptions_SetIncludeModules(self, b)
+
+    def GetIncludeModules(self):
+        r"""GetIncludeModules(SBStatisticsOptions self) -> bool"""
+        return _lldb.SBStatisticsOptions_GetIncludeModules(self)
+
+    def SetIncludeTranscript(self, b):
+        r"""SetIncludeTranscript(SBStatisticsOptions self, bool b)"""
+        return _lldb.SBStatisticsOptions_SetIncludeTranscript(self, b)
+
+    def GetIncludeTranscript(self):
+        r"""GetIncludeTranscript(SBStatisticsOptions self) -> bool"""
+        return _lldb.SBStatisticsOptions_GetIncludeTranscript(self)
 
     def SetReportAllAvailableDebugInfo(self, b):
         r"""
@@ -11026,6 +11209,10 @@ class SBTarget(object):
         GetStatistics(SBTarget self, SBStatisticsOptions options) -> SBStructuredData
         """
         return _lldb.SBTarget_GetStatistics(self, *args)
+
+    def ResetStatistics(self):
+        r"""ResetStatistics(SBTarget self)"""
+        return _lldb.SBTarget_ResetStatistics(self)
 
     def GetPlatform(self):
         r"""
@@ -11953,11 +12140,11 @@ class SBTarget(object):
                     module = self.sbtarget.GetModuleAtIndex(idx)
                     if module.uuid == key:
                         return module
-            elif type(key) is re.SRE_Pattern:
+            elif isinstance(key, type(re.compile(''))):
                 matching_modules = []
                 for idx in range(num_modules):
                     module = self.sbtarget.GetModuleAtIndex(idx)
-                    re_match = key.search(module.path.fullpath)
+                    re_match = key.search(module.file.fullpath)
                     if re_match:
                         matching_modules.append(module)
                 return matching_modules
@@ -12616,6 +12803,12 @@ class SBThread(object):
             frames.append(frame)
         return frames
 
+    def get_stop_reason_data(self):
+        return [
+            self.GetStopReasonDataAtIndex(idx)
+            for idx in range(self.GetStopReasonDataCount())
+        ]
+
     id = property(GetThreadID, None, doc='''A read only property that returns the thread ID as an integer.''')
     idx = property(GetIndexID, None, doc='''A read only property that returns the thread index ID as an integer. Thread index ID values start at 1 and increment as threads come and go and can be used to uniquely identify threads.''')
     return_value = property(GetStopReturnValue, None, doc='''A read only property that returns an lldb object that represents the return value from the last stop (lldb.SBValue) if we just stopped due to stepping out of a function.''')
@@ -12627,6 +12820,7 @@ class SBThread(object):
     queue = property(GetQueueName, None, doc='''A read only property that returns the dispatch queue name of this thread as a string.''')
     queue_id = property(GetQueueID, None, doc='''A read only property that returns the dispatch queue id of this thread as an integer.''')
     stop_reason = property(GetStopReason, None, doc='''A read only property that returns an lldb enumeration value (see enumerations that start with "lldb.eStopReason") that represents the reason this thread stopped.''')
+    stop_reason_data = property(get_stop_reason_data, None, doc='''A read only property that returns the stop reason data as a list.''')
     is_suspended = property(IsSuspended, None, doc='''A read only property that returns a boolean value that indicates if this thread is suspended.''')
     is_stopped = property(IsStopped, None, doc='''A read only property that returns a boolean value that indicates if this thread is stopped but not exited.''')
 
@@ -15437,6 +15631,10 @@ class SBValue(object):
         r"""GetNonSyntheticValue(SBValue self) -> SBValue"""
         return _lldb.SBValue_GetNonSyntheticValue(self)
 
+    def GetSyntheticValue(self):
+        r"""GetSyntheticValue(SBValue self) -> SBValue"""
+        return _lldb.SBValue_GetSyntheticValue(self)
+
     def GetPreferDynamicValue(self):
         r"""GetPreferDynamicValue(SBValue self) -> lldb::DynamicValueType"""
         return _lldb.SBValue_GetPreferDynamicValue(self)
@@ -15518,6 +15716,10 @@ class SBValue(object):
     def CreateValueFromData(self, name, data, type):
         r"""CreateValueFromData(SBValue self, char const * name, SBData data, SBType type) -> SBValue"""
         return _lldb.SBValue_CreateValueFromData(self, name, data, type)
+
+    def CreateBoolValue(self, name, value):
+        r"""CreateBoolValue(SBValue self, char const * name, bool value) -> SBValue"""
+        return _lldb.SBValue_CreateBoolValue(self, name, value)
 
     def GetChildAtIndex(self, *args):
         r"""
