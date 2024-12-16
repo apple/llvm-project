@@ -40,6 +40,7 @@
 #include "lldb/Utility/LLDBAssert.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/StreamString.h"
+#include "lldb/lldb-enumerations.h"
 
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
@@ -300,6 +301,22 @@ static void PrepareContextToReceiveMembers(TypeSystemClang &ast,
     ast.SetDeclIsForcefullyCompleted(tag_decl_ctx);
     ast.CompleteTagDeclarationDefinition(type);
   }
+}
+
+static std::optional<TypeSP> TryEmplaceDIEToType(DWARFDIE const &def_die,
+                                                 SymbolFileDWARF &dwarf) {
+  auto [it, inserted] =
+      dwarf.GetDIEToType().try_emplace(def_die.GetDIE(), DIE_IS_BEING_PARSED);
+
+  // First time we're parsing this DIE, nothing to return.
+  if (inserted)
+    return std::nullopt;
+
+  // DIE is currently being parsed.
+  if (it->getSecond() == nullptr || it->getSecond() == DIE_IS_BEING_PARSED)
+    return nullptr;
+
+  return it->getSecond()->shared_from_this();
 }
 
 void DWARFASTParserClang::RegisterDIE(DWARFDebugInfoEntry *die,
@@ -981,42 +998,18 @@ TypeSP DWARFASTParserClang::ParseEnum(const SymbolContext &sc,
                                       ParsedDWARFTypeAttributes &attrs) {
   Log *log = GetLog(DWARFLog::TypeCompletion | DWARFLog::Lookups);
   SymbolFileDWARF *dwarf = decl_die.GetDWARF();
-  const dw_tag_t tag = decl_die.Tag();
 
   DWARFDIE def_die;
   if (attrs.is_forward_declaration) {
     if (TypeSP type_sp = ParseTypeFromClangModule(sc, decl_die, log))
       return type_sp;
 
-    def_die = dwarf->FindDefinitionDIE(decl_die);
-
-    if (!def_die) {
-      SymbolFileDWARFDebugMap *debug_map_symfile = dwarf->GetDebugMapSymfile();
-      if (debug_map_symfile) {
-        // We weren't able to find a full declaration in this DWARF,
-        // see if we have a declaration anywhere else...
-        def_die = debug_map_symfile->FindDefinitionDIE(decl_die);
-      }
-    }
-
-    if (log) {
-      dwarf->GetObjectFile()->GetModule()->LogMessage(
-          log,
-          "SymbolFileDWARF({0:p}) - {1:x16}}: {2} ({3}) type \"{4}\" is a "
-          "forward declaration, complete DIE is {5}",
-          static_cast<void *>(this), decl_die.GetID(), DW_TAG_value_to_name(tag),
-          tag, attrs.name.GetCString(),
-          def_die ? llvm::utohexstr(def_die.GetID()) : "not found");
-    }
+    def_die = FindDefinitionDIE(decl_die, *dwarf);
   }
   if (def_die) {
-    if (auto [it, inserted] = dwarf->GetDIEToType().try_emplace(
-            def_die.GetDIE(), DIE_IS_BEING_PARSED);
-        !inserted) {
-      if (it->getSecond() == nullptr || it->getSecond() == DIE_IS_BEING_PARSED)
-        return nullptr;
-      return it->getSecond()->shared_from_this();
-    }
+    if (auto maybe_type = TryEmplaceDIEToType(def_die, *dwarf))
+      return *maybe_type;
+
     attrs = ParsedDWARFTypeAttributes(def_die);
   } else {
     // No definition found. Proceed with the declaration die. We can use it to
@@ -1791,10 +1784,8 @@ static void adjustArgPassing(TypeSystemClang &ast,
   }
 }
 
-TypeSP
-DWARFASTParserClang::ParseStructureLikeDIE(const SymbolContext &sc,
-                                           const DWARFDIE &die,
-                                           ParsedDWARFTypeAttributes &attrs) {
+TypeSP DWARFASTParserClang::ParseStructureLikeDIE(
+    const SymbolContext &sc, DWARFDIE die, ParsedDWARFTypeAttributes &attrs) {
   CompilerType clang_type;
   const dw_tag_t tag = die.Tag();
   SymbolFileDWARF *dwarf = die.GetDWARF();
@@ -1810,19 +1801,28 @@ DWARFASTParserClang::ParseStructureLikeDIE(const SymbolContext &sc,
   ConstString unique_typename(attrs.name);
   Declaration unique_decl(attrs.decl);
   uint64_t byte_size = attrs.byte_size.value_or(0);
-  if (attrs.byte_size && *attrs.byte_size == 0 && attrs.name &&
-      !die.HasChildren() && cu_language == eLanguageTypeObjC) {
-    // Work around an issue with clang at the moment where forward
-    // declarations for objective C classes are emitted as:
-    //  DW_TAG_structure_type [2]
-    //  DW_AT_name( "ForwardObjcClass" )
-    //  DW_AT_byte_size( 0x00 )
-    //  DW_AT_decl_file( "..." )
-    //  DW_AT_decl_line( 1 )
-    //
-    // Note that there is no DW_AT_declaration and there are no children,
-    // and the byte size is zero.
-    attrs.is_forward_declaration = true;
+
+  if (attrs.is_forward_declaration) {
+    // See if the type comes from a Clang module and if so, track down
+    // that type.
+    if (TypeSP type_sp = ParseTypeFromClangModule(sc, die, log))
+      return type_sp;
+
+    // Objetive-C forward declared types are represented in the same way
+    // that they are in C++. Since we don't want to create a CXXRecordDecl
+    // for the Objective-C type here, we need to fetch the definition DIE,
+    // which will have a DW_AT_APPLE_runtime_class attribute indicating
+    // we're dealing with Objective-C.
+    if (cu_language == eLanguageTypeObjC_plus_plus ||
+        cu_language == eLanguageTypeObjC) {
+      if (DWARFDIE def_die = FindDefinitionDIE(die, *dwarf)) {
+        if (auto maybe_type = TryEmplaceDIEToType(def_die, *dwarf))
+          return *maybe_type;
+
+        attrs = ParsedDWARFTypeAttributes(def_die);
+        die = def_die;
+      }
+    }
   }
 
   if (attrs.name) {
@@ -1904,14 +1904,6 @@ DWARFASTParserClang::ParseStructureLikeDIE(const SymbolContext &sc,
       }
       return type_sp;
     }
-  }
-
-  if (attrs.is_forward_declaration) {
-    // See if the type comes from a Clang module and if so, track down
-    // that type.
-    TypeSP type_sp = ParseTypeFromClangModule(sc, die, log);
-    if (type_sp)
-      return type_sp;
   }
 
   assert(tag_decl_kind != -1);
@@ -4083,4 +4075,31 @@ void DWARFASTParserClang::ParseRustVariantPart(
   m_ast.CompleteTagDeclarationDefinition(inner_holder);
 
   layout_info.field_offsets.insert({inner_field, 0});
+}
+
+DWARFDIE DWARFASTParserClang::FindDefinitionDIE(DWARFDIE const &decl_die,
+                                                SymbolFileDWARF &dwarf) {
+  DWARFDIE def_die = dwarf.FindDefinitionDIE(decl_die);
+
+  if (!def_die) {
+    SymbolFileDWARFDebugMap *debug_map_symfile = dwarf.GetDebugMapSymfile();
+    if (debug_map_symfile) {
+      // We weren't able to find a full declaration in this DWARF,
+      // see if we have a declaration anywhere else...
+      def_die = debug_map_symfile->FindDefinitionDIE(decl_die);
+    }
+  }
+
+  if (auto *log = GetLog(DWARFLog::TypeCompletion | DWARFLog::Lookups)) {
+    char const *name = decl_die.GetName();
+    dwarf.GetObjectFile()->GetModule()->LogMessage(
+        log,
+        "SymbolFileDWARF({0:p}) - {1:x16}}: {2} ({3}) type \"{4}\" is a "
+        "forward declaration, complete DIE is {5}",
+        static_cast<void *>(this), decl_die.GetID(),
+        DW_TAG_value_to_name(decl_die.Tag()), decl_die.Tag(), name ? name : "",
+        def_die ? llvm::utohexstr(def_die.GetID()) : "not found");
+  }
+
+  return def_die;
 }

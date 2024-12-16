@@ -219,10 +219,9 @@ protected:
       const lldb_private::plugin::dwarf::DWARFDIE &parent_die);
 
   /// Parse a structure, class, or union type DIE.
-  lldb::TypeSP
-  ParseStructureLikeDIE(const lldb_private::SymbolContext &sc,
-                        const lldb_private::plugin::dwarf::DWARFDIE &die,
-                        ParsedDWARFTypeAttributes &attrs);
+  lldb::TypeSP ParseStructureLikeDIE(const lldb_private::SymbolContext &sc,
+                                     lldb_private::plugin::dwarf::DWARFDIE die,
+                                     ParsedDWARFTypeAttributes &attrs);
 
   clang::Decl *
   GetClangDeclForDIE(const lldb_private::plugin::dwarf::DWARFDIE &die);
@@ -498,6 +497,9 @@ private:
   bool IsSwiftInteropType(const lldb_private::plugin::dwarf::DWARFDIE &die);
   // END SWIFT
 
+  lldb_private::plugin::dwarf::DWARFDIE
+  FindDefinitionDIE(lldb_private::plugin::dwarf::DWARFDIE const &decl_die,
+                    lldb_private::plugin::dwarf::SymbolFileDWARF &dwarf);
 };
 
 /// Parsed form of all attributes that are relevant for type reconstruction.
