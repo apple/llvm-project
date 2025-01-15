@@ -56,6 +56,11 @@ APValue::LValueBase::is() const {
   return isa<T>(DAOrForged);
 }
 
+template APValue::LValueBase::EnableIfDAOrForged<ForgedPtrLValue, bool>
+APValue::LValueBase::is<ForgedPtrLValue>() const;
+template APValue::LValueBase::EnableIfDAOrForged<DynamicAllocLValue, bool>
+APValue::LValueBase::is<DynamicAllocLValue>() const;
+
 template <class T>
 APValue::LValueBase::EnableIfDAOrForged<T> APValue::LValueBase::get() const {
   DynamicAllocOrForgedPtrLValue::BaseTy DAOrForged =
@@ -75,6 +80,11 @@ APValue::LValueBase::dyn_cast() const {
     return cast<DynamicAllocOrForgedPtrLValue>(Ptr).dyn_cast<T>();
   return T();
 }
+
+template APValue::LValueBase::EnableIfDAOrForged<ForgedPtrLValue>
+APValue::LValueBase::dyn_cast<ForgedPtrLValue>() const;
+template APValue::LValueBase::EnableIfDAOrForged<DynamicAllocLValue>
+APValue::LValueBase::dyn_cast<DynamicAllocLValue>() const;
 
 APValue::LValueBase APValue::LValueBase::getDynamicAlloc(DynamicAllocLValue LV,
                                                          QualType Type) {
