@@ -10601,12 +10601,15 @@ public:
   ExprResult TransformCallExpr(CallExpr *E) {
     const auto *Callee = E->getDirectCallee();
     if (Callee && Callee->hasAttr<ConstAttr>()) {
-      for (auto *Arg : E->arguments()) {
-        if (!Arg->isEvaluatable(SemaRef.Context)) {
-          SemaRef.Diag(E->getExprLoc(),
-                       diag::err_bounds_safety_dynamic_count_function_call_argument)
-              << E << getDynamicCountKind();
-          return ExprError();
+      if (!SemaRef.getLangOpts().isBoundsSafetyAttributeOnlyMode()) {
+        for (auto *Arg : E->arguments()) {
+          if (!Arg->isEvaluatable(SemaRef.Context)) {
+            SemaRef.Diag(
+                E->getExprLoc(),
+                diag::err_bounds_safety_dynamic_count_function_call_argument)
+                << E << getDynamicCountKind();
+            return ExprError();
+          }
         }
       }
       return E;

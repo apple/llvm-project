@@ -1,5 +1,7 @@
-// RUN: %clang_cc1 -fsyntax-only -fbounds-safety -verify %s
-// RUN: %clang_cc1 -fsyntax-only -fbounds-safety -x objective-c -fbounds-attributes-objc-experimental -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fbounds-safety -verify=expected,runtime-call %s
+// RUN: %clang_cc1 -fsyntax-only -fbounds-safety -x objective-c -fbounds-attributes-objc-experimental -verify=expected,runtime-call %s
+// RUN: %clang_cc1 -fsyntax-only -fexperimental-bounds-safety-attributes -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fexperimental-bounds-safety-attributes -x objective-c -fbounds-attributes-objc-experimental -verify %s
 #include <ptrcheck.h>
 
 // const arguments
@@ -128,22 +130,22 @@ void test_local_const_function_argument_count() {
 
 struct struct_const_function_argument_count2 {
   int field;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument(field)) buf;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument(field)) buf2;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument(field)) buf3;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(field)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument(field)) buf4;
   const int const_field;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument(const_field)) buf5;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument(const_field)) buf6;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument(const_field)) buf7;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(const_field)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument(const_field)) buf8;
 
   int *__counted_by(fun_const_with_argument(const_global_count)) buf9;
@@ -151,26 +153,26 @@ struct struct_const_function_argument_count2 {
   int *__counted_by_or_null(fun_const_with_argument(const_global_count)) buf11;
   int *__sized_by_or_null(fun_const_with_argument(const_global_count)) buf12;
 
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument(data_const_global_count)) buf13;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument(data_const_global_count)) buf14;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument(data_const_global_count)) buf15;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument(data_const_global_count)) buf16;
 };
 
-// expected-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by' attribute is not a constant expression}}
 void fun_const_function_argument_count2(
      int *__counted_by(fun_const_with_argument(global_count)) arg);
-// expected-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by' attribute is not a constant expression}}
 void fun_const_function_argument_size2(
      int *__sized_by(fun_const_with_argument(global_count)) arg);
-// expected-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
 void fun_const_function_argument_count_null2(
      int *__counted_by_or_null(fun_const_with_argument(global_count)) arg);
-// expected-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
 void fun_const_function_argument_size_null2(
      int *__sized_by_or_null(fun_const_with_argument(global_count)) arg);
 
@@ -183,50 +185,50 @@ void fun_const_function_argument_count_null3(
 void fun_const_function_argument_size_null3(
      int *__sized_by_or_null(fun_const_with_argument(const_global_count)) arg);
 
-// expected-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by' attribute is not a constant expression}}
 void fun_const_function_argument_count4(
      int *__counted_by(fun_const_with_argument(data_const_global_count)) arg);
-// expected-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by' attribute is not a constant expression}}
 void fun_const_function_argument_size4(
      int *__sized_by(fun_const_with_argument(data_const_global_count)) arg);
-// expected-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
 void fun_const_function_argument_count_null4(
      int *__counted_by_or_null(fun_const_with_argument(data_const_global_count)) arg);
-// expected-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
+// runtime-call-error@+2{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
 void fun_const_function_argument_size_null4(
      int *__sized_by_or_null(fun_const_with_argument(data_const_global_count)) arg);
 
 void test_local_const_function_argument_count2(int arg) {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument(arg)) local;
 }
 void test_local_const_function_argument_size2(int arg) {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument(arg)) local;
 }
 void test_local_const_function_argument_count_null2(int arg) {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument(arg)) local;
 }
 void test_local_const_function_argument_size_null2(int arg) {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(arg)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument(arg)) local;
 }
 
 void test_local_const_function_argument_count3() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument(global_count)) local;
 }
 void test_local_const_function_argument_size3() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument(global_count)) local;
 }
 void test_local_const_function_argument_count_null3() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument(global_count)) local;
 }
 void test_local_const_function_argument_size_null3() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument(global_count)) local;
 }
 
@@ -244,69 +246,69 @@ void test_local_const_function_argument_size_null4() {
 }
 
 void test_local_const_function_argument_count5() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument(data_const_global_count)) local;
 }
 void test_local_const_function_argument_size5() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument(data_const_global_count)) local;
 }
 void test_local_const_function_argument_count_null5() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument(data_const_global_count)) local;
 }
 void test_local_const_function_argument_size_null5() {
-  // expected-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument(data_const_global_count)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument(data_const_global_count)) local;
 }
 
 struct struct_const_function_argument2_count {
   int field0;
   void *field1;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument2(field0, field1)) buf;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument2(field0, field1)) buf2;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument2(field0, field1)) buf3;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(field0, field1)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument2(field0, field1)) buf4;
 
   const int const_field0;
   const void *const_field1;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument2(const_field0, field1)) buf5;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument2(const_field0, field1)) buf6;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument2(const_field0, field1)) buf7;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, field1)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument2(const_field0, field1)) buf8;
 
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument2(const_field0, const_field1)) buf9;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument2(const_field0, const_field1)) buf10;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument2(const_field0, const_field1)) buf11;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_field0, const_field1)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument2(const_field0, const_field1)) buf12;
 
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument2(const_global_count, const_field1)) buf13;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument2(const_global_count, const_field1)) buf14;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument2(const_global_count, const_field1)) buf15;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(const_global_count, const_field1)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument2(const_global_count, const_field1)) buf16;
 
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__counted_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__counted_by' attribute is not a constant expression}}
   int *__counted_by(fun_const_with_argument2(data_const_global_count, const_field1)) buf17;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__sized_by' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__sized_by' attribute is not a constant expression}}
   int *__sized_by(fun_const_with_argument2(data_const_global_count, const_field1)) buf18;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__counted_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__counted_by_or_null' attribute is not a constant expression}}
   int *__counted_by_or_null(fun_const_with_argument2(data_const_global_count, const_field1)) buf19;
-  // expected-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__sized_by_or_null' attribute is not a constant expression}}
+  // runtime-call-error@+1{{argument of function call 'fun_const_with_argument2(data_const_global_count, const_field1)' in '__sized_by_or_null' attribute is not a constant expression}}
   int *__sized_by_or_null(fun_const_with_argument2(data_const_global_count, const_field1)) buf20;
 };
