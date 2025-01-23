@@ -97,6 +97,16 @@ public:
   static SwiftLanguageRuntime *Get(lldb::ProcessSP process_sp) {
     return SwiftLanguageRuntime::Get(process_sp.get());
   }
+
+  /// Returns the Module containing the Swift Concurrency runtime, if it exists.
+  static lldb::ModuleSP findConcurrencyModule(Process &process);
+
+  /// Returns the version of the swift concurrency runtime debug layout.
+  /// If no Concurrency module is found, or if errors occur, nullopt is
+  /// returned.
+  /// Returns 0 for versions of the module prior to the introduction
+  /// of versioning.
+  static std::optional<uint32_t> findConcurrencyDebugVersion(Process &process);
   /// \}
 
   /// PluginInterface protocol.
@@ -473,6 +483,8 @@ public:
   static const char *GetErrorBackstopName();
   ConstString GetStandardLibraryName();
   static const char *GetStandardLibraryBaseName();
+  static const char *GetConcurrencyLibraryBaseName();
+
   static bool IsSwiftClassName(const char *name);
   /// Determines wether \c variable is the "self" object.
   static bool IsSelf(Variable &variable);
