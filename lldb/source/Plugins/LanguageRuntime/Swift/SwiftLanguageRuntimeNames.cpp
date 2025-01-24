@@ -303,6 +303,7 @@ public:
     auto &target = thread.GetProcess()->GetTarget();
     m_funclet_bp = target.CreateBreakpoint(destination_addr, true, false);
     m_funclet_bp->SetBreakpointKind("async-run-to-funclet");
+    m_funclet_bp->SetThreadID(thread.GetID());
   }
 
   bool ValidatePlan(Stream *error) override {
