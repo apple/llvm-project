@@ -1740,6 +1740,42 @@ public:
   }
 };
 
+class ObjCFeatureCheckExpr : public Expr {
+  friend class ASTStmtReader;
+
+  IdentifierInfo *FeatureName;
+  SourceLocation AtLoc, RParen;
+
+public:
+  ObjCFeatureCheckExpr(IdentifierInfo *FeatureName, SourceLocation AtLoc,
+                       SourceLocation RParen, QualType Ty)
+      : Expr(ObjCFeatureCheckExprClass, Ty, VK_PRValue, OK_Ordinary),
+        FeatureName(FeatureName), AtLoc(AtLoc), RParen(RParen) {
+    setDependence(ExprDependence::None);
+  }
+
+  explicit ObjCFeatureCheckExpr(EmptyShell Shell)
+      : Expr(ObjCFeatureCheckExprClass, Shell) {}
+
+  SourceLocation getBeginLoc() const { return AtLoc; }
+  SourceLocation getEndLoc() const { return RParen; }
+  SourceRange getSourceRange() const { return {AtLoc, RParen}; }
+
+  IdentifierInfo *getFeatureName() const { return FeatureName; }
+
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == ObjCFeatureCheckExprClass;
+  }
+};
+
 } // namespace clang
 
 #endif // LLVM_CLANG_AST_EXPROBJC_H

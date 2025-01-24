@@ -1892,6 +1892,7 @@ ObjCCategoryDecl *SemaObjC::ActOnStartCategoryInterface(
   // checking for protocol uses.
   SemaRef.ProcessDeclAttributeList(SemaRef.TUScope, CDecl, AttrList);
   SemaRef.AddPragmaAttributes(SemaRef.TUScope, CDecl);
+  Context.inheritFeatureAvailability(CDecl, IDecl);
 
   if (NumProtoRefs) {
     diagnoseUseOfProtocols(SemaRef, CDecl, (ObjCProtocolDecl *const *)ProtoRefs,
@@ -1947,6 +1948,7 @@ ObjCCategoryImplDecl *SemaObjC::ActOnStartCategoryImplementation(
 
   SemaRef.ProcessDeclAttributeList(SemaRef.TUScope, CDecl, Attrs);
   SemaRef.AddPragmaAttributes(SemaRef.TUScope, CDecl);
+  Context.inheritFeatureAvailability(CDecl, IDecl);
 
   // FIXME: PushOnScopeChains?
   SemaRef.CurContext->addDecl(CDecl);
@@ -2081,6 +2083,7 @@ ObjCImplementationDecl *SemaObjC::ActOnStartClassImplementation(
 
   SemaRef.ProcessDeclAttributeList(SemaRef.TUScope, IMPDecl, Attrs);
   SemaRef.AddPragmaAttributes(SemaRef.TUScope, IMPDecl);
+  Context.inheritFeatureAvailability(IMPDecl, IDecl);
 
   if (CheckObjCDeclScope(IMPDecl)) {
     ActOnObjCContainerStartDefinition(IMPDecl);

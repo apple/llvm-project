@@ -635,6 +635,10 @@ void StmtPrinter::VisitObjCAvailabilityCheckExpr(
   OS << "@available(...)";
 }
 
+void StmtPrinter::VisitObjCFeatureCheckExpr(ObjCFeatureCheckExpr *Node) {
+  OS << "@feature(...)";
+}
+
 void StmtPrinter::VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *Node) {
   Indent() << "@synchronized (";
   PrintExpr(Node->getSynchExpr());

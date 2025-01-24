@@ -1168,6 +1168,13 @@ static llvm::Triple::EnvironmentType getEnvironmentType(llvm::StringRef Environm
   let Documentation = [AvailabilityDocs];
 }
 
+def FeatureAvailability : InheritableAttr {
+  let Spellings = [Clang<"feature">];
+  let Args = [IdentifierArgument<"name">];
+  let Subjects = SubjectList<[Named]>;
+  let Documentation = [Undocumented];
+}
+
 def ExternalSourceSymbol : InheritableAttr {
   let Spellings = [Clang<"external_source_symbol", /*allowInC=*/1,
                    /*version=*/20230206>];

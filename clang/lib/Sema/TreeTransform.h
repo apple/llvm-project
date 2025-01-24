@@ -16699,6 +16699,12 @@ ExprResult TreeTransform<Derived>::TransformObjCAvailabilityCheckExpr(
   return E;
 }
 
+template <typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformObjCFeatureCheckExpr(ObjCFeatureCheckExpr *E) {
+  return E;
+}
+
 template<typename Derived>
 ExprResult
 TreeTransform<Derived>::TransformObjCMessageExpr(ObjCMessageExpr *E) {

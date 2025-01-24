@@ -2340,9 +2340,8 @@ static void AddPropertyAttrs(Sema &S, ObjCMethodDecl *PropertyMethod,
                              ObjCPropertyDecl *Property) {
   // Should we just clone all attributes over?
   for (const auto *A : Property->attrs()) {
-    if (isa<DeprecatedAttr>(A) ||
-        isa<UnavailableAttr>(A) ||
-        isa<AvailabilityAttr>(A))
+    if (isa<DeprecatedAttr>(A) || isa<UnavailableAttr>(A) ||
+        isa<AvailabilityAttr>(A) || isa<FeatureAvailabilityAttr>(A))
       PropertyMethod->addAttr(A->clone(S.Context));
   }
 }
