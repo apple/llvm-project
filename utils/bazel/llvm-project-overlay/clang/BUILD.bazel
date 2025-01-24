@@ -46,6 +46,7 @@ gentbl(
     tbl_outs = [out for c in [
         "AST",
         "Analysis",
+        "CAS",
         "Comment",
         "Common",
         "CrossTU",
@@ -1445,7 +1446,10 @@ cc_library(
 
 cc_library(
     name = "tooling_dependency_scanning",
-    srcs = glob(["lib/Tooling/DependencyScanning/**/*.cpp"]),
+    srcs = glob([
+        "lib/Tooling/DependencyScanning/**/*.cpp",
+        "lib/Tooling/DependencyScanning/**/*.h",
+    ]),
     hdrs = glob(["include/clang/Tooling/DependencyScanning/**/*.h"]),
     deps = [
         ":basic",
@@ -1675,6 +1679,7 @@ cc_library(
         ":parse",
         ":static_analyzer_checkers_gen",
         "//llvm:BinaryFormat",
+        "//llvm:CAS",
         "//llvm:FrontendDebug",
         "//llvm:Instrumentation",
         "//llvm:MC",
@@ -1897,6 +1902,7 @@ cc_library(
         "//llvm:BitReader",
         "//llvm:BitstreamReader",
         "//llvm:BitstreamWriter",
+        "//llvm:CAS",
         "//llvm:Core",
         "//llvm:FrontendDebug",
         "//llvm:Linker",
@@ -2266,6 +2272,7 @@ cc_plugin_library(
         ":sema",
         ":tooling",
         "//llvm:BitstreamReader",
+        "//llvm:CAS",
         "//llvm:FrontendOpenMP",
         "//llvm:Support",
         "//llvm:config",
@@ -2293,6 +2300,8 @@ cc_binary(
     srcs = [
         "tools/c-index-test/c-index-test.c",
         "tools/c-index-test/core_main.cpp",
+        "tools/c-index-test/JSONAggregation.cpp",
+        "tools/c-index-test/JSONAggregation.h",
     ],
     copts = [
         "-Wno-uninitialized",
@@ -2397,7 +2406,10 @@ cc_binary(
 
 cc_library(
     name = "clang-driver",
-    srcs = glob(["tools/driver/*.cpp"]),
+    srcs = glob([
+        "tools/driver/*.cpp",
+        "tools/driver/*.h",
+    ]),
     copts = [
         # Disable stack frame size checks in the driver because
         # clang::ensureStackAddressSpace allocates a large array on the stack.
