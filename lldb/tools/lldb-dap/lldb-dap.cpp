@@ -416,7 +416,8 @@ void SendStdOutStdErr(lldb::SBProcess &process) {
 void ProgressEventThreadFunction() {
   lldb::SBListener listener("lldb-dap.progress.listener");
   g_dap.debugger.GetBroadcaster().AddListener(
-      listener, lldb::SBDebugger::eBroadcastBitProgress);
+      listener, lldb::SBDebugger::eBroadcastBitProgress |
+                    lldb::SBDebugger::eBroadcastBitExternalProgress);
   g_dap.broadcaster.AddListener(listener, eBroadcastBitStopProgressThread);
   lldb::SBEvent event;
   bool done = false;
