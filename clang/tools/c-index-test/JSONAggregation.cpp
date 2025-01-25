@@ -108,6 +108,34 @@ private:
     return StringRef(buf, str.size());
   }
 
+  StringRef escapeForJson(StringRef str) {
+    char *buf = Allocator.Allocate<char>(str.size() * 2);
+
+    size_t i = 0;
+    for (char c : str) {
+      switch (c) {
+      case '"':
+        buf[i++] = '\\';
+        buf[i++] = '"';
+        break;
+      case '\\':
+        buf[i++] = '\\';
+        buf[i++] = '\\';
+        break;
+      case '\n':
+        buf[i++] = '\\';
+        buf[i++] = 'n';
+        break;
+      default:
+        buf[i++] = c;
+      }
+    }
+
+    buf[i] = '\0';
+
+    return StringRef(buf, str.size());
+  }
+
   StringRef getTripleString(StringRef inputTriple) {
     return Triples.insert(std::make_pair(inputTriple, 0)).first->first();
   }
@@ -270,12 +298,16 @@ void Aggregator::dumpJSON(raw_ostream &OS) {
   for (unsigned i = 0, e = Symbols.size(); i != e; ++i) {
     OS.indent(4) << "{\n";
     SymbolInfo &symInfo = Symbols[i];
-    OS.indent(6) << "\"kind\": \"" << getSymbolKindString(symInfo.Kind) << "\",\n";
-    OS.indent(6) << "\"lang\": \"" << getSymbolLanguageString(symInfo.Lang) << "\",\n";
-    OS.indent(6) << "\"usr\": \"" << symInfo.USR << "\",\n";
-    OS.indent(6) << "\"name\": \"" << symInfo.Name << "\",\n";
+    OS.indent(6) << "\"kind\": \""
+                 << escapeForJson(getSymbolKindString(symInfo.Kind)) << "\",\n";
+    OS.indent(6) << "\"lang\": \""
+                 << escapeForJson(getSymbolLanguageString(symInfo.Lang))
+                 << "\",\n";
+    OS.indent(6) << "\"usr\": \"" << escapeForJson(symInfo.USR) << "\",\n";
+    OS.indent(6) << "\"name\": \"" << escapeForJson(symInfo.Name) << "\",\n";
     if (!symInfo.CodegenName.empty())
-      OS.indent(6) << "\"codegen\": \"" << symInfo.CodegenName << "\",\n";
+      OS.indent(6) << "\"codegen\": \"" << escapeForJson(symInfo.CodegenName)
+                   << "\",\n";
     OS.indent(6) << "\"roles\": \"";
     printSymbolRoles(symInfo.Roles, OS);
     OS << '\"';
@@ -344,7 +376,7 @@ void Aggregator::dumpJSON(raw_ostream &OS) {
   for (unsigned i = 0, e = Units.size(); i != e; ++i) {
     OS.indent(4) << "{\n";
     UnitInfo &unit = *Units[i];
-    OS.indent(6) << "\"triple\": \"" << unit.Triple << "\",\n";
+    OS.indent(6) << "\"triple\": \"" << escapeForJson(unit.Triple) << "\",\n";
     OS.indent(6) << "\"out-file\": " << unit.OutFile << ",\n";
     if (!unit.UnitDepends.empty()) {
       OS.indent(6) << "\"unit-dependencies\": [";
