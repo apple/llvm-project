@@ -4008,6 +4008,10 @@ def err_availability_unexpected_parameter: Error<
 def warn_unguarded_availability :
   Warning<"%0 is only available %select{|in %4 environment }3on %1 %2 or newer">,
   InGroup<UnguardedAvailability>, DefaultIgnore;
+def err_unguarded_feature : Error<
+  "use of %0 needs guard for feature %1">;
+def err_label_in_conditionally_guarded_feature : Error<
+  "labels cannot appear in regions conditionally guarded by features">;
 def warn_unguarded_availability_unavailable :
   Warning<"%0 is unavailable">,
   InGroup<UnguardedAvailability>, DefaultIgnore;

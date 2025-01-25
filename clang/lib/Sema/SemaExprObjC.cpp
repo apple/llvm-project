@@ -5191,6 +5191,14 @@ ExprResult SemaObjC::ActOnObjCAvailabilityCheckExpr(
       ObjCAvailabilityCheckExpr(Version, AtLoc, RParen, Context.BoolTy);
 }
 
+ExprResult SemaObjC::ActOnObjCFeatureCheckExpr(IdentifierInfo *FeatureName,
+                                               SourceLocation AtLoc,
+                                               SourceLocation RParen) {
+  ASTContext &Context = getASTContext();
+  return new (Context)
+      ObjCFeatureCheckExpr(FeatureName, AtLoc, RParen, Context.BoolTy);
+}
+
 /// Prepare a conversion of the given expression to an ObjC object
 /// pointer type.
 CastKind SemaObjC::PrepareCastToObjCObjectPointer(ExprResult &E) {
