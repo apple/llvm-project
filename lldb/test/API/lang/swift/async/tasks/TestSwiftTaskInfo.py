@@ -18,6 +18,14 @@ class TestCase(TestBase):
         lldbutil.run_to_source_breakpoint(
             self, "break here", lldb.SBFileSpec("main.swift")
         )
+
+        self.expect(
+            "image list",
+            patterns=[
+                "/swift-macosx-(arm64|x86_64)/lib/swift/macosx/([^/]+/)libswift_Concurrency"
+            ],
+        )
+
         self.runCmd("frame variable task")
         frame_variable_output = self.res.GetOutput()
         self.runCmd("language swift task info")
