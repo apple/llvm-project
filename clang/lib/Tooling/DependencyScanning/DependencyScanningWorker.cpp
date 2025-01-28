@@ -34,6 +34,7 @@
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrefixMapper.h"
 #include "llvm/TargetParser/Host.h"
 #include <optional>
@@ -764,7 +765,8 @@ DependencyScanningWorker::getOrCreateFileManager() const {
 llvm::Error DependencyScanningWorker::computeDependencies(
     StringRef WorkingDirectory, const std::vector<std::string> &CommandLine,
     DependencyConsumer &Consumer, DependencyActionController &Controller,
-    std::optional<StringRef> ModuleName) {
+    std::optional<std::variant<StringRef, llvm::MemoryBufferRef>>
+        AdditionalInfo) {
   std::vector<const char *> CLI;
   for (const std::string &Arg : CommandLine)
     CLI.push_back(Arg.c_str());
@@ -778,7 +780,7 @@ llvm::Error DependencyScanningWorker::computeDependencies(
   TextDiagnosticPrinter DiagPrinter(DiagnosticsOS, DiagOpts.release());
 
   if (computeDependencies(WorkingDirectory, CommandLine, Consumer, Controller,
-                          DiagPrinter, ModuleName))
+                          DiagPrinter, AdditionalInfo))
     return llvm::Error::success();
   return llvm::make_error<llvm::StringError>(DiagnosticsOS.str(),
                                              llvm::inconvertibleErrorCode());
@@ -849,30 +851,41 @@ static bool createAndRunToolInvocation(
 bool DependencyScanningWorker::computeDependencies(
     StringRef WorkingDirectory, const std::vector<std::string> &CommandLine,
     DependencyConsumer &Consumer, DependencyActionController &Controller,
-    DiagnosticConsumer &DC, std::optional<StringRef> ModuleName) {
+    DiagnosticConsumer &DC,
+    std::optional<std::variant<StringRef, llvm::MemoryBufferRef>>
+        AdditionalInfo) {
   // Reset what might have been modified in the previous worker invocation.
   BaseFS->setCurrentWorkingDirectory(WorkingDirectory);
 
   std::optional<std::vector<std::string>> ModifiedCommandLine;
   llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> ModifiedFS;
+  std::optional<StringRef> ModuleName;
 
   // If we're scanning based on a module name alone, we don't expect the client
   // to provide us with an input file. However, the driver really wants to have
   // one. Let's just make it up to make the driver happy.
-  if (ModuleName) {
+  if (AdditionalInfo) {
     auto OverlayFS =
         llvm::makeIntrusiveRefCnt<llvm::vfs::OverlayFileSystem>(BaseFS);
     auto InMemoryFS =
         llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>();
     InMemoryFS->setCurrentWorkingDirectory(WorkingDirectory);
-
     SmallString<128> FakeInputPath;
-    // TODO: We should retry the creation if the path already exists.
-    llvm::sys::fs::createUniquePath(*ModuleName + "-%%%%%%%%.input",
-                                    FakeInputPath,
-                                    /*MakeAbsolute=*/false);
-    InMemoryFS->addFile(FakeInputPath, 0, llvm::MemoryBuffer::getMemBuffer(""));
-
+    if (const auto *Name = std::get_if<StringRef>(&*AdditionalInfo)) {
+      ModuleName = *Name;
+      // TODO: We should retry the creation if the path already exists.
+      llvm::sys::fs::createUniquePath(*Name + "-%%%%%%%%.input",
+                                      FakeInputPath,
+                                      /*MakeAbsolute=*/false);
+      InMemoryFS->addFile(FakeInputPath, 0,
+                          llvm::MemoryBuffer::getMemBuffer(""));
+    } else if (const auto *TU =
+                   std::get_if<llvm::MemoryBufferRef>(&*AdditionalInfo)) {
+      FakeInputPath = TU->getBufferIdentifier();
+      InMemoryFS->addFile(
+          FakeInputPath, 0,
+          llvm::MemoryBuffer::getMemBufferCopy(TU->getBuffer()));
+    }
     llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> InMemoryOverlay =
         InMemoryFS;
     // If we are using a CAS but not dependency CASFS, we need to provide the

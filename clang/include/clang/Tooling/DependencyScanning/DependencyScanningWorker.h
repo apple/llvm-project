@@ -18,6 +18,7 @@
 #include "llvm/CAS/CachingOnDiskFileSystem.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBufferRef.h"
 #include <optional>
 #include <string>
 
@@ -124,24 +125,28 @@ public:
                            llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS);
 
   /// Run the dependency scanning tool for a given clang driver command-line,
-  /// and report the discovered dependencies to the provided consumer. If \p
-  /// ModuleName isn't empty, this function reports the dependencies of module
-  /// \p ModuleName.
+  /// and report the discovered dependencies to the provided consumer. If
+  /// TUBuffer is not nullopt, it is used as TU input for the dependency
+  /// scanning. Otherwise, the input should be included as part of the
+  /// command-line. ModuleNames is a list of additional modules to be imported
+  /// in addition to what is referenced in TU.
   ///
   /// \returns false if clang errors occurred (with diagnostics reported to
   /// \c DiagConsumer), true otherwise.
-  bool computeDependencies(StringRef WorkingDirectory,
-                           const std::vector<std::string> &CommandLine,
-                           DependencyConsumer &DepConsumer,
-                           DependencyActionController &Controller,
-                           DiagnosticConsumer &DiagConsumer,
-                           std::optional<StringRef> ModuleName = std::nullopt);
+  bool computeDependencies(
+      StringRef WorkingDirectory, const std::vector<std::string> &CommandLine,
+      DependencyConsumer &DepConsumer, DependencyActionController &Controller,
+      DiagnosticConsumer &DiagConsumer,
+      std::optional<std::variant<StringRef, llvm::MemoryBufferRef>>
+          AdditionalInfo = std::nullopt);
+
   /// \returns A \c StringError with the diagnostic output if clang errors
   /// occurred, success otherwise.
   llvm::Error computeDependencies(
       StringRef WorkingDirectory, const std::vector<std::string> &CommandLine,
       DependencyConsumer &Consumer, DependencyActionController &Controller,
-      std::optional<StringRef> ModuleName = std::nullopt);
+      std::optional<std::variant<StringRef, llvm::MemoryBufferRef>>
+          AdditionalInfo = std::nullopt);
 
   /// Scan from a compiler invocation.
   /// If \p DiagGenerationAsCompilation is true it will generate error
