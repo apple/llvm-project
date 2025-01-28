@@ -490,6 +490,18 @@ protected:
   CompilerType LookupClangForwardType(llvm::StringRef name, 
                   llvm::ArrayRef<CompilerContext> decl_context);
 
+  /// Recursively resolves all type aliases.
+  swift::Demangle::NodePointer
+  ResolveAllTypeAliases(swift::Demangle::Demangler &dem,
+                        swift::Demangle::NodePointer node);
+
+  /// Resolve a type alias node and return a demangle tree for the
+  /// resolved type. If the type alias resolves to a Clang type, return
+  /// a Clang CompilerType.
+  ///
+  /// \param prefer_clang_types if this is true, type aliases in the
+  ///                           __C module are resolved as Clang types.
+  ///
   std::pair<swift::Demangle::NodePointer, CompilerType>
   ResolveTypeAlias(swift::Demangle::Demangler &dem,
                    swift::Demangle::NodePointer node,
