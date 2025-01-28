@@ -15096,6 +15096,8 @@ ScalarEvolution::LoopGuards::collect(const Loop *L, ScalarEvolution &SE) {
   BasicBlock *Header = L->getHeader();
   BasicBlock *Pred = L->getLoopPredecessor();
   LoopGuards Guards(SE);
+  if (!Pred)
+    return Guards;
   SmallPtrSet<const BasicBlock *, 8> VisitedBlocks;
   collectFromBlock(SE, Guards, Header, Pred, VisitedBlocks);
   return Guards;
