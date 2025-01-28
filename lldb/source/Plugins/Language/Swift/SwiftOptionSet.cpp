@@ -149,43 +149,35 @@ std::string lldb_private::formatters::swift::SwiftOptionSetSummaryProvider::
   return sstr.GetString().str();
 }
 
-static bool ReadValueIfAny(ValueObject &valobj, llvm::APInt &value) {
-  ValueObjectSP most_qualified_sp(valobj.GetQualifiedRepresentationIfAvailable(
-      lldb::eDynamicDontRunTarget, true));
-
-  bool success;
-  value = llvm::APInt(64, most_qualified_sp->GetValueAsUnsigned(0, &success));
-  return success;
-}
-
-static ValueObjectSP GetRawValue(ValueObject *valobj) {
-  if (!valobj)
-    return nullptr;
-
-  static ConstString g_rawValue("rawValue");
-
-  auto rawValue_sp = valobj->GetChildMemberWithName(g_rawValue, true);
-
-  return rawValue_sp;
-}
-
 bool lldb_private::formatters::swift::SwiftOptionSetSummaryProvider::
     FormatObject(ValueObject *valobj, std::string &dest,
                  const TypeSummaryOptions &options) {
-  auto rawValue_sp = GetRawValue(valobj);
-  if (!rawValue_sp)
-    return false;
+  StreamString ss;
+  DataExtractor data;
+  Status error;
 
-  llvm::APInt value;
-  if (!ReadValueIfAny(*rawValue_sp, value))
+  if (!valobj)
+    return false;
+  valobj->GetData(data, error);
+  if (error.Fail())
     return false;
 
   {
-    ExecutionContext exe_ctx = valobj->GetExecutionContextRef().Lock(false);
+    ExecutionContext exe_ctx(valobj->GetExecutionContextRef());
+    StreamString case_s;
+    if (valobj->GetCompilerType().DumpTypeValue(
+            &case_s, lldb::eFormatEnum, data, 0, data.GetByteSize(), 0, 0,
+            exe_ctx.GetBestExecutionContextScope(), false)) {
+      ss << '.' << case_s.GetData();
+      dest.assign(ss.GetData());
+      return true;
+    }
     FillCasesIfNeeded(&exe_ctx);
   }
 
-  StreamString ss;
+  offset_t data_offset = 0;
+  int64_t value = data.GetMaxS64(&data_offset, data.GetByteSize());
+
   bool first_match = true;
   bool any_match = false;
 
@@ -246,11 +238,5 @@ bool lldb_private::formatters::swift::SwiftOptionSetSummaryProvider::
 
 bool lldb_private::formatters::swift::SwiftOptionSetSummaryProvider::
     DoesPrintChildren(ValueObject *valobj) const {
-  auto rawValue_sp = GetRawValue(valobj);
-  if (!rawValue_sp)
-    return false;
-
-  llvm::APInt value;
-  // only show children if you couldn't read the value of rawValue
-  return (false == ReadValueIfAny(*rawValue_sp, value));
+  return false;
 }

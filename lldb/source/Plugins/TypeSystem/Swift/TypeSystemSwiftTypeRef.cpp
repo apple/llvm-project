@@ -87,6 +87,14 @@ public:
     return imported_name.getBaseName().userFacingName().str();
   }
 
+  template <typename IntTy>
+  llvm::StringRef ProjectEnumCase(const clang::EnumDecl *decl, IntTy val) {
+    for (const auto *enumerator : decl->enumerators())
+      if (enumerator->getInitVal() == val)
+        return m_clang_importer->getEnumConstantName(enumerator).str();
+    return {};
+  }
+
 private:
   swift::CompilerInvocation m_compiler_invocation;
   swift::SourceManager m_source_manager;
@@ -4641,18 +4649,41 @@ bool TypeSystemSwiftTypeRef::DumpTypeValue(
       // In some instances, a swift `structure` wraps an objc enum. The enum
       // case needs to be handled, but structs are no-ops.
       auto resolved = ResolveTypeAlias(dem, node, true);
-      auto clang_type = std::get<CompilerType>(resolved);
-      if (!clang_type)
-        return false;
+      auto resolved_type = std::get<CompilerType>(resolved);
+      if (!resolved_type)
+         return false;
 
       bool is_signed;
-      if (!clang_type.IsEnumerationType(is_signed))
+      if (!resolved_type.IsEnumerationType(is_signed))
         // The type is a clang struct, not an enum.
         return false;
 
-      // The type is an enum imported from clang. Try Swift type metadata first,
-      // and failing that fallback to the AST.
-      LLVM_FALLTHROUGH;
+      if (!resolved_type.GetTypeSystem().isa_and_nonnull<TypeSystemClang>())
+        return false;
+
+      // The type is an enum imported from clang.
+      auto qual_type = ClangUtil::GetQualType(resolved_type);
+      auto *enum_type =
+          llvm::dyn_cast_or_null<clang::EnumType>(qual_type.getTypePtrOrNull());
+      if (!enum_type)
+        return false;
+      auto *importer = GetNameImporter();
+      if (!importer)
+        return false;
+      if (!data_byte_size)
+        return false;
+      StringRef case_name;
+      if (is_signed) {
+        uint64_t val = data.GetMaxU64(&data_offset, data_byte_size);
+        case_name = importer->ProjectEnumCase(enum_type->getDecl(), val);
+      } else {
+        int64_t val = data.GetMaxS64(&data_offset, data_byte_size);
+        case_name = importer->ProjectEnumCase(enum_type->getDecl(), val);
+      }
+      if (case_name.empty())
+        return false;
+      s << case_name;
+      return true;
     }
     case Node::Kind::Enum:
     case Node::Kind::BoundGenericEnum: {
@@ -4672,18 +4703,6 @@ bool TypeSystemSwiftTypeRef::DumpTypeValue(
             error = toString(case_name.takeError());
         }
 
-      // No result available from the runtime, fallback to the AST. This occurs
-      // for some Clang imported enums.
-      if (auto swift_ast_context =
-              GetSwiftASTContext(GetSymbolContext(exe_scope))) {
-        ExecutionContext exe_ctx;
-        exe_scope->CalculateExecutionContext(exe_ctx);
-        if (swift_ast_context->DumpTypeValue(
-                ReconstructType(type, &exe_ctx), s, format, data, data_offset,
-                data_byte_size, bitfield_bit_size, bitfield_bit_offset,
-                exe_scope, is_base_class))
-          return true;
-      }
       s << error;
       return false;
     }
